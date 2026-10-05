@@ -891,6 +891,15 @@ static Link* linkFor(int printerIdx) {
     return nullptr;
 }
 
+// A printer is UP when the box holds a live link to it, or when it answered
+// the reachability probe recently. One rule for the dot on the home screen,
+// the up/total count, and printers_online in the account - so Studio and the
+// box can never disagree about the same printer.
+static bool printerUp(int i) {
+    const Link* l = linkFor(i);
+    return (l && l->be && l->state == LINK_UP) || isOnline(i);
+}
+
 // Which printers get a link: the ones the user left switched on. The toggle in
 // Settings used to decide only what the home screen listed; it decides what the
 // box talks to now, which is what someone ticking it expects.
@@ -1618,16 +1627,18 @@ static void presenceTick() {
     p.usedNow        = presenceUsed;
 
     static String ids[MAX_PRINTERS];
+    static bool   up[MAX_PRINTERS];
     int nIds = 0, active = 0;
     for (int i = 0; i < MAX_PRINTERS; i++) {
         if (printers[i].type == PT_NONE || !printers[i].visible) continue;
         active++;
         const String id = ttcloud::printerDocId(i);
-        if (id.length()) ids[nIds++] = id;
+        if (id.length()) { up[nIds] = printerUp(i); ids[nIds++] = id; }
     }
     p.printersActive = active;
     p.printerIds     = ids;
     p.printerIdCount = nIds;
+    p.printerUp      = up;
 
     // Off the main loop: the beat is a TLS request of about a second and a
     // half, and on the loop it froze the screen that long every thirty seconds.
@@ -2393,8 +2404,7 @@ void loop() {
         for (int i = 0; i < MAX_PRINTERS; i++) {
             if (printers[i].type == PT_NONE || !printers[i].visible) continue;
             total++;
-            const Link* l = linkFor(i);
-            if ((l && l->be && l->state == LINK_UP) || isOnline(i)) up++;
+            if (printerUp(i)) up++;
         }
         screen_home::showMain(up, total, nfcReady,
                               WiFi.isConnected() ? WiFi.RSSI() : 0,
@@ -2492,7 +2502,7 @@ void loop() {
             uint8_t dot[MAX_PRINTERS];
             for (int i = 0; i < MAX_PRINTERS; i++) {
                 const Link* l = linkFor(i);
-                if ((l && l->be && l->state == LINK_UP) || isOnline(i))
+                if (printerUp(i))
                     dot[i] = screen_home::DOT_UP;
                 // Blue while the device is actually dialling it. A printer
                 // being connected to is not a printer that is off, and the

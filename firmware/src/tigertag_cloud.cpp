@@ -1164,11 +1164,20 @@ struct Sent {
     bool   onUsb = true, screenOff = false;
     int    printersActive = -1;
     String printerIds;      // joined, for comparison only
+    String printersOnline;  // joined, for comparison only
 } g_sent;
 
 String joinIds(const ttcloud::Presence& p) {
     String j;
     for (int i = 0; i < p.printerIdCount; i++) { j += p.printerIds[i]; j += ','; }
+    return j;
+}
+
+String joinOnline(const ttcloud::Presence& p) {
+    String j;
+    if (!p.printerUp) return j;
+    for (int i = 0; i < p.printerIdCount; i++)
+        if (p.printerUp[i]) { j += p.printerIds[i]; j += ','; }
     return j;
 }
 
@@ -1266,6 +1275,21 @@ bool ttcloud::heartbeat(const Presence& p, bool full, String& err) {
         mask.add("printer_ids");
     }
 
+    // Which of those printers this box can reach right now - the dots on its
+    // own home screen, so Studio shows what the box sees rather than what
+    // Studio itself can reach (a printer can be up for one and not the other).
+    // A subset of printer_ids, not a map: the same array shape, read with one
+    // `includes`. Sent when it moves; an empty array is written, never omitted,
+    // or the last printer to go down would stay green in Studio.
+    const String online = joinOnline(p);
+    const bool onlineChanged = (online != g_sent.printersOnline);
+    if (first || idsChanged || onlineChanged) {
+        JsonArray arr = f["printers_online"]["arrayValue"]["values"].to<JsonArray>();
+        for (int i = 0; i < p.printerIdCount; i++)
+            if (p.printerUp && p.printerUp[i]) arr.add<JsonObject>()["stringValue"] = p.printerIds[i];
+        mask.add("printers_online");
+    }
+
     // The server stamps the time, always. "Is this device online" is then
     // `now - last_heartbeat_at < 2 * interval` decided by the server's own
     // clock, which is true whatever this box believes the time to be.
@@ -1310,6 +1334,7 @@ bool ttcloud::heartbeat(const Presence& p, bool full, String& err) {
     g_sent.screenOff = p.screenOff;
     g_sent.printersActive = p.printersActive;
     g_sent.printerIds = ids;
+    g_sent.printersOnline = online;
     return true;
 }
 
@@ -1323,6 +1348,7 @@ volatile bool       g_hbBusy = false;
 volatile bool       g_hbDone = false;
 ttcloud::Presence   g_hbP;
 String              g_hbIds[MAX_PRINTERS];
+bool                g_hbUp[MAX_PRINTERS];
 bool                g_hbFull = false, g_hbOk = false;
 String              g_hbErr;
 
@@ -1342,7 +1368,9 @@ bool ttcloud::startAsyncHeartbeat(const Presence& p, bool full) {
     g_hbP = p;
     const int n = p.printerIdCount < MAX_PRINTERS ? p.printerIdCount : MAX_PRINTERS;
     for (int i = 0; i < n; i++) g_hbIds[i] = p.printerIds[i];
+    for (int i = 0; i < n; i++) g_hbUp[i]  = p.printerUp ? p.printerUp[i] : false;
     g_hbP.printerIds = g_hbIds;
+    g_hbP.printerUp  = g_hbUp;
     g_hbP.printerIdCount = n;
     g_hbFull = full;
     g_hbBusy = true;

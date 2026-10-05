@@ -18,6 +18,15 @@ message, and reset it to this header.
 
 ## Unreleased
 
+### Added
+
+- Presence now says which printers the box can reach: `printers_online`, the
+  subset of `printer_ids` that is up right now, by the same rule as the dots on
+  the home screen (a live link, or a probe answer within 25 s). One helper,
+  `printerUp()`, now decides the dot, the up/total count and the field, so Tiger
+  Studio and the box cannot disagree about a printer. Written when it changes,
+  always as an array (empty included). `docs/PRESENCE.md` updated.
+
 ### Changed
 
 - New wiring diagram (Cirkit Designer project 5b546f4e): board, PN532 and the

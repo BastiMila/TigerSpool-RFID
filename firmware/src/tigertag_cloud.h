@@ -134,6 +134,9 @@ namespace ttcloud {
         int           printersActive = 0;
         const String* printerIds     = nullptr;   // account document ids
         int           printerIdCount = 0;
+        // Parallel to printerIds: is that printer up RIGHT NOW, by the same
+        // rule as the dot on the home screen. Published as printers_online.
+        const bool*   printerUp      = nullptr;
         // A spool was written to a printer since the last beat. It turns into
         // last_used_at, stamped by the SERVER: this device has no clock it can
         // vouch for - no RTC, no NTP - so a time it wrote itself would be a

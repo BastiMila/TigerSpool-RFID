@@ -88,6 +88,15 @@ heartbeat must never trample it.
 | `printers_active` | int - how many printers the user has switched on here |
 | `printer_ids` | array of strings - those printers' document ids in the account |
 | `last_used_at` | server timestamp, written on the beat after a spool is sent |
+| `printers_online` | array of strings - the subset of `printer_ids` this box can reach right now |
+
+`printers_online` is what the box SEES, by the same rule as the dots on its own
+home screen: a live link to that printer, or an answer to the reachability probe
+within the last 25 s. Studio draws it as a green or grey dot in front of each
+machine, and deliberately not from its own connection to the printer - the two
+can differ (a printer reachable over the cloud from Studio and not from the
+box's network, or the reverse). Sent when it moves, always as an array, empty
+included: an omitted field would leave the last printer that went down green.
 
 `printer_ids` is what lets Studio put the right TigerSpool next to the right
 printer. The ids come from the account import and are held **in RAM only**, so
