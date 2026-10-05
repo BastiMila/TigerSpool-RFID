@@ -29,4 +29,14 @@ namespace tls {
 // separate decision with its own condition.
 void secure(WiFiClientSecure& client);
 
+// Every mbedTLS allocation goes to PSRAM from here on, falling back to internal
+// RAM only when PSRAM is out. Called once, first thing in setup().
+//
+// The core is built with CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC: each TLS session's
+// buffers - about 40 KB - came out of the ~320 KB of internal RAM that Wi-Fi,
+// the panel and every task share, while 8 MB of PSRAM sat free. Three sessions
+// was the ceiling, and a fourth, one-off request - the presence beat beside a
+// LAN Bambu and two cloud sessions - failed its handshake every time.
+void usePsram();
+
 }  // namespace tls

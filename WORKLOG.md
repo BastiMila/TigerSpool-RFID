@@ -18,6 +18,59 @@ message, and reset it to this header.
 
 ## Unreleased
 
+### Fixed
+
+- Account import on a full NVS: positions past the new list were overwritten
+  with zeros and empty strings AFTER the printers, and NVS needs a free entry
+  for every put, even a smaller one - so on a full partition every write
+  failed, silently. Bench board: the account held 7 printers, the device kept
+  19 (stale showroom K2s, a "Kobra X" stored as an Elegoo), and every sync said
+  "updated". Those positions are now removed (`Preferences::remove`, no free
+  entry needed, frees what they held) before anything is written, and the
+  import reads back what it wrote: a list that did not stick says "NOT SAVED,
+  device storage full" and logs the NVS counters. Measured on the bench board:
+  first sync 19 -> 7 "updated", the next "no change".
+- Settings > Printers (`ST_PICK`) now applies the sync it starts on the way in.
+  It never did: the list stayed the old one until the home screen.
+- Every printer link is closed properly before the device goes away:
+  `closeAllLinks()` (MQTT DISCONNECT, WebSocket close, the shared cloud
+  sessions released) runs as an ESP-IDF shutdown handler on every
+  `esp_restart()` - Settings > Restart, factory reset, the web page, the end of
+  an update - registered once Wi-Fi is up so it runs ahead of the Wi-Fi
+  driver's own, and by hand in `powerOff()` (deep sleep runs no handler). A
+  restart used to vanish and leave the printer holding the session until its
+  own timeout; a Bambu A1 refuses a fourth session, so a box restarted a few
+  times beside Tiger Studio locked both out. Bench: "[link] 6 link(s) closed
+  before shutdown", then the Wi-Fi stop, then the reset.
+- Creality K1 family and Ender-3 V4 (model ids 6..10) are imported. `mapType()`
+  refused them since the first import, while the README listed them and the
+  backend had been measured on an Ender-3 V4. Bench: "+ creality
+  'Ender-3_V4-574A' @ 192.168.40.107", sync "8 LAN, 3 cloud, 2 without IP".
+
+### Changed
+
+- mbedTLS allocates in PSRAM (`tls::usePsram()`, first thing in `setup()`,
+  `mbedtls_platform_set_calloc_free`, internal RAM only as a fallback). The
+  core pins it to internal RAM (`CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC`), so every
+  TLS session took ~40 KB of the ~320 KB shared with Wi-Fi and the panel, and
+  the presence beat beside three TLS links failed its handshake ("heartbeat
+  http -1" x3, then a 5-minute hold) - `printers_online` in Firestore stayed
+  at one printer while the screen showed five. Bench board, same 5 links up
+  (X1C LAN, cloud Kobra X, AD5X, Snapmaker U1, Centauri Carbon 2): internal
+  free ~80 KB -> ~170 KB, largest block 43 KB -> 139 KB; every beat ok, ~1.5 s
+  as before; no loop pass over 300 ms after the links settled (before: a
+  1.1-1.5 s pass every few seconds as links dropped and redialled); account
+  sync and the update check (GitHub) fine. Issue #24.
+- Load budget recalibrated for TLS in PSRAM: `/api/memtest?all=1` on the bench
+  account, all eight printers up at once, 34 KB taken, 149 KB free (baseline
+  183 KB). First cloud Bambu 50 -> 9, further cloud Bambu 4 -> 6, LAN Bambu
+  50 -> 6 (first reading ever), first cloud Anycubic 50 -> 6, Anycubic LAN and
+  further cloud Anycubic 41/4 -> 6 (not measured, flagged). `LOAD_SLOTS` 160 ->
+  120, keeping ~30 KB because this is one pass, not five. The bench account is
+  43 of 120. CONNECTION-BUDGET.md, README, CODEMAP, CLAUDE.md, bench.h updated;
+  the ROADMAP entry "More TLS printers at once" is built and removed (its
+  24-AMS note kept as its own entry).
+
 ### Added
 
 - Presence now says which printers the box can reach: `printers_online`, the

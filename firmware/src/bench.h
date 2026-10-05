@@ -5,8 +5,8 @@
 //
 // A diagnostic added to chase a bug - a payload dumped to the console, a
 // counter, a log kept in memory or sent somewhere - costs RAM, flash and time
-// on every device in the field, and on a device that holds three TLS sessions
-// at most, a few kilobytes of it is the difference between working and not.
+// on every device in the field, and on a device whose internal RAM is a few
+// hundred kilobytes, a few of them is the difference between working and not.
 // Removing it by hand before a release depends on somebody remembering.
 //
 // So it is not removed, it is not COMPILED: bench code sits inside

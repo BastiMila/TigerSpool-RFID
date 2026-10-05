@@ -45,6 +45,7 @@
 #include <esp_task_wdt.h>
 #include "imu.h"
 #include "tigertag_cloud.h"
+#include "net/tls.h"
 #include "ui/lvgl_port.h"
 #include "ui/screen_home.h"
 #include "ui/screen_setup.h"
@@ -615,11 +616,17 @@ static bool wifiConnect() {
                   WiFi.RSSI(), WiFi.BSSIDstr().c_str(), WiFi.channel());
     return true;
 }
+static void closeAllLinks();
 static void onWifiUp() {
     // Confirm the running image so the bootloader stops treating it as a
     // candidate, and say in the log whether there is a slot to update into.
     ota::begin();
     if (!webStarted) { webcfg::begin(); webStarted = true; }
+    // Registered once Wi-Fi exists, never before: ESP-IDF runs shutdown
+    // handlers in reverse order of registration, so this one runs ahead of
+    // the Wi-Fi driver's own and the DISCONNECTs still have a radio to leave by.
+    static bool closeOnRestart = false;
+    if (!closeOnRestart) closeOnRestart = esp_register_shutdown_handler(closeAllLinks) == ESP_OK;
 }
 
 // Where to go once there is a network. An unlinked device has nothing to show
@@ -782,6 +789,25 @@ static PrinterBackend* newBackend(PrinterType t) {
 static void dropLink(Link& l) {
     if (l.be) { l.be->stop(); delete l.be; }
     l = Link{};
+}
+
+// Every link closed the way the printer expects - an MQTT DISCONNECT, a
+// WebSocket close - before the device goes away. A restart or a power-off used
+// to just vanish, and the printer kept the session until its own timeout. A
+// Bambu A1 holds three sessions at most and refuses the fourth, so a box
+// restarted a few times in a row, beside Tiger Studio, locked itself and
+// Studio out of the printer it had just been talking to.
+//
+// Runs on every esp_restart() - Settings, factory reset, the web page, the end
+// of an update - as a shutdown handler (registered in onWifiUp), and by hand
+// before deep sleep, which does not run them.
+static void closeAllLinks() {
+    int n = 0;
+    for (int i = 0; i < MAX_LINKS; i++)
+        if (links[i].be) { dropLink(links[i]); n++; }
+    if (!n) return;
+    Serial.printf("[link] %d link(s) closed before shutdown\n", n);
+    delay(100);                  // let the last packets and FINs leave
 }
 
 // What one more open connection costs, and why there is a floor at all.
@@ -1784,6 +1810,7 @@ static void stayOffUnlessPlugged() {
 
 static void powerOff() {
     Serial.println("[ui] turning off on request");
+    closeAllLinks();             // deep sleep runs no shutdown handler
     Serial.flush();
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
@@ -1813,6 +1840,7 @@ void setup() {
     gpio_hold_dis(GPIO_NUM_1);
     Serial.begin(115200);
     delay(150);
+    tls::usePsram();                         // before any TLS session exists
     esp_task_wdt_init(LOOP_WDT_S, true);     // reconfigures the running TWDT
     lcd.init();
     lcd.setRotation(SCR_ROTATION);
@@ -2641,6 +2669,19 @@ void loop() {
     }
 
     case ST_PICK: {
+        // The sync started on the way in lands here, while the list is on
+        // screen - and nothing picked it up: the list it was opened for stayed
+        // the one it replaced until the user left for the home screen. An
+        // account cut from nineteen printers to seven still showed nineteen
+        // on the one screen opened to check it.
+        {
+            String s;
+            ttcloud::asyncTake(s);
+            if (ttcloud::consumeChanged()) {
+                loadCfg();
+                for (int i = 0; i < MAX_PRINTERS; i++) pLastSeen[i] = 0;
+            }
+        }
         screen_settings::showPrinters(printers, MAX_PRINTERS, ttcloud::asyncBusy(),
                                       loadSlotsUsed(), justRefused());
         lvgl_port::loop();

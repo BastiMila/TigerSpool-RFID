@@ -84,64 +84,7 @@ leaving it out: a missing accent reads as a device that could not draw one, a
 wrong one reads as a device that does not know the language. Polish in
 particular is not a job for a search and replace.
 
-## More TLS printers at once
-
-How many printers fit today, and every number behind that, is in
-[CONNECTION-BUDGET.md](CONNECTION-BUDGET.md): the device refuses a printer that
-would overflow a budget of 160 load slots, and a TLS printer takes 41-50 of
-them. This entry is about raising that ceiling.
-
-**Measured, and it overturns what this entry used to say.** It was titled
-"Move the MQTT buffers to PSRAM" and proposed vendoring PubSubClient to do it.
-They are already there. This framework is built with `CONFIG_SPIRAM_USE_MALLOC`
-and `CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL 4096`, so every allocation over 4 KB -
-the 50 KB Bambu buffer, the 16 KB Anycubic one - goes to PSRAM without being
-asked. `/api/memtest` shows it directly: the buffer lands in the PSRAM column.
-
-What sits in internal RAM is **mbedTLS**, which the same config pins there
-(`CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC`). `/api/memtest`, every link closed, the
-account sync held off, printers opened one at a time and read after ten settled
-seconds:
-
-```
-baseline, 0 links   free 202124   largest 61428
-creality            3856  internal       0 psram
-bambu (background) 43940  internal    8208 psram
-bambu (on screen)  47756  internal   51216 psram
-snapmaker           4884  internal       0 psram
-elegoo              2128  internal    8208 psram
-anycubic           39432  internal   16400 psram
-done, 6 links       free  60128   largest 18420   psram 8.1 MB free
-```
-
-**So a printer costs one thing: whether it speaks TLS.** A WebSocket or plain
-MQTT printer is 2 to 5 KB and ten of them fit comfortably. A TLS printer - Bambu,
-Anycubic - is 40 to 48 KB, and the device holds about **three**. Not by total
-memory alone: the largest free block falls from 61 KB to 18 KB across those
-three, and a new TLS session needs one piece that size. Fragmentation is what
-stops the fourth, and it stops it before the total would.
-
-**The two ways past it, neither small:**
-
-1. **Put mbedTLS in PSRAM.** `CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC`. It is an
-   sdkconfig option, and the Arduino core here is precompiled with its sdkconfig
-   fixed - so it means building Arduino as an ESP-IDF component, a change of
-   build system. It would take TLS from 40 KB internal to near nothing and lift
-   the limit to whatever the ten-link cap allows. PSRAM is slower, and a TLS
-   handshake is CPU-bound, so connects would get slower; how much is a
-   measurement to make, not a guess.
-2. ~~**Share one TLS session between Bambu printers on the same cloud
-   broker.**~~ **Built in 1.46.0** (`bambu_cloud.cpp`): every cloud Bambu on
-   an account rides one session, routed by the serial in each report's topic,
-   and a further one costs 3.6 KB instead of ~48. LAN-mode Bambus each have
-   their own broker and cannot share, and neither can Anycubic, so option 1 is
-   what remains for those.
-
-**What this entry no longer proposes:** vendoring PubSubClient, shrinking the
-Bambu buffer after connect, or sizing it by role for the sake of internal RAM.
-All three would move PSRAM around, of which 8 MB is idle.
-
-### The 24-AMS case is simpler than it looked
+## A Bambu with 24 AMS units
 
 A Bambu can chain up to 24 AMS units - 96 trays plus the external spool. Rare.
 It is not a memory problem, because the report buffer is in PSRAM and PSRAM is

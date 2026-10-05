@@ -9,9 +9,11 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <nvs.h>
 #include <initializer_list>
 #include <mbedtls/base64.h>
 #include "version.h"
+#include "bench.h"
 
 namespace {
     // TigerTag's public Firebase client config. Not a secret: it is served
@@ -243,10 +245,13 @@ namespace {
     // brand + printerModelId (TigerTag catalogue) -> supported backend
     PrinterType mapType(const String& brand, const String& modelId) {
         int m = modelId.toInt();
-        // Creality: everything except the K1 / Ender family (ids 6..10). The
-        // K2/Plus/Pro/SE (2..5), Hi (1), SparkX i7 (11) and later models all
-        // speak the K2's Nebula WebSocket API.
-        if (brand == "creality")   return (m >= 6 && m <= 10) ? PT_NONE : PT_CREALITY;
+        // Creality: every model speaks the K2's WebSocket API on :9999 - the
+        // K2 family, Hi, SparkX i7, and the K1 family and Ender-3 V4 (ids 6..10)
+        // too. Those were refused here from the first import, so a K1 or an
+        // Ender in the account never reached the device, while the README
+        // listed them as working and the backend had been measured on an
+        // Ender-3 V4.
+        if (brand == "creality")   return PT_CREALITY;
         // FlashForge: Creator 5 / 5 Pro are model ids 5 and 6. An AD5X reports 1 and
         // speaks the same msConfig_cmd - verified on hardware.
         if (brand == "flashforge") return (m == 5 || m == 6) ? PT_FF_C5 : PT_NONE;
@@ -839,11 +844,29 @@ bool ttcloud::syncNow(String& summary) {
         }
     }
 
+    // Positions past the new list are REMOVED, and before anything is written.
+    //
+    // They used to be overwritten with zeros and empty strings, after the
+    // printers. NVS never rewrites in place: every put needs a free entry
+    // first, even one that stores less. On a full partition the writes failed,
+    // silently, every one of them - an account cut from nineteen printers to
+    // seven stayed at nineteen on the device, sync after sync, each one saying
+    // "updated". Removing needs no free entry and frees the ones it held, which
+    // is what makes room for the list that follows.
+    static const char FIELDS[] = "tnhscdumakv";
+    bool diff = false;
+    for (int i = n; i < MAX_PRINTERS; i++) {
+        for (const char* f = FIELDS; *f; f++) {
+            char key[6];
+            snprintf(key, sizeof(key), "p%d%c", i, *f);
+            if (k.isKey(key)) { k.remove(key); diff = true; }
+        }
+    }
+
     // Write to NVS only if something actually changed: flash has a finite
     // number of erase cycles and this runs every few minutes.
-    bool diff = false;
     int newSel = -1;
-    for (int i = 0; i < MAX_PRINTERS; i++) {
+    for (int i = 0; i < n; i++) {
         char key[6];
         const Stored& at = old[i];            // what is stored at this position now
         const int o = (i < n) ? from[i] : -1;
@@ -935,6 +958,22 @@ bool ttcloud::syncNow(String& summary) {
         k.putInt("printerIdx", newSel);
         diff = true;
     }
+
+    // Read back what the device will load. A put that fails returns 0 and
+    // nothing else says so; this is the one place that can tell "updated"
+    // from "tried to".
+    int unsaved = 0;
+    for (int i = 0; i < MAX_PRINTERS; i++) {
+        char key[6];
+        snprintf(key, sizeof(key), "p%dt", i);
+        if (k.getInt(key, 0) != (i < n ? (int)got[i].type : 0)) unsaved++;
+    }
+    if (unsaved) {
+        nvs_stats_t st;
+        if (nvs_get_stats(nullptr, &st) == ESP_OK)
+            Serial.printf("[account] NOT SAVED: %d position(s) differ - NVS %u/%u entries used\n",
+                          unsaved, (unsigned)st.used_entries, (unsigned)st.total_entries);
+    }
     k.end();
 
     // One more document: Bambu Lab's cloud session. It is not a printer, it is
@@ -979,7 +1018,8 @@ bool ttcloud::syncNow(String& summary) {
               (cloudN  ? (String(", ") + cloudN + " cloud")   : "") +
               (noip    ? (String(", ") + noip + " without IP")    : "") +
               (ignored ? (String(", ") + ignored + " ignored") : "") +
-              (diff ? " - updated" : " - no change");
+              (unsaved ? " - NOT SAVED, device storage full"
+                       : diff ? " - updated" : " - no change");
     g_lastResult = summary;
     Serial.printf("[account] sync: %s\n", summary.c_str());
     return true;
@@ -1354,7 +1394,10 @@ String              g_hbErr;
 
 void heartbeatTaskFn(void*) {
     String err;
+    const uint32_t t0 = millis();
     const bool ok = ttcloud::heartbeat(g_hbP, g_hbFull, err);
+    BENCH_LOG("[presence] beat %s in %lu ms, internal largest %u\n", ok ? "ok" : "FAILED",
+              (unsigned long)(millis() - t0), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
     g_hbOk = ok;
     g_hbErr = err;
     g_hbDone = true;

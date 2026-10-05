@@ -39,13 +39,12 @@ attempt.
 
 **Do not generalise that to printer sessions.** Those three verify against the
 Arduino core's root CA bundle, and parsing it is most of what they cost. A
-printer session is `setInsecure()` and is cheaper - but a TLS printer still
-takes 40-48 KB of internal RAM against 2-6 KB for any other, and the device
-holds about three TLS sessions before fragmentation stops the fourth. Every
+printer session is `setInsecure()` and is cheaper. Since `tls::usePsram()`
+(`net/tls.cpp`, first thing in `setup()`) every mbedTLS buffer is in PSRAM, so a
+TLS printer takes 5-9 KB of internal RAM instead of 40-50, and the old ceiling
+of three TLS sessions is gone - the link count (`MAX_LINKS`) binds first. Every
 measurement, and the load budget that enforces it (`printer_budget.h`), is in
-[docs/CONNECTION-BUDGET.md](docs/CONNECTION-BUDGET.md). A one-off TLS request
-beside three printer sessions gets room from the TLS stand-down in `main.cpp`,
-not from the budget.
+[docs/CONNECTION-BUDGET.md](docs/CONNECTION-BUDGET.md).
 
 ## Landmines
 

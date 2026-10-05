@@ -7,8 +7,30 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Many more printers at once.** Encryption now uses the board's 8 MB of
+  PSRAM instead of its scarce internal memory, so a Bambu Lab or an Anycubic
+  costs about what any other printer does. The old ceiling of about three
+  encrypted printers is gone: up to ten printers can be connected together, in
+  any mix of brands.
+- **Tiger Studio sees which printers the box can reach, every 30 seconds.**
+  The presence beat no longer fails beside several encrypted printers.
+
 ### Fixed
 
+- **Restarting or turning off the box no longer leaves sessions open on your
+  printers.** It now says goodbye to each one first. A Bambu Lab A1 accepts
+  three sessions at most, and the ones left behind by a restart could lock
+  Tiger Studio and the box out of it until they timed out.
+- **Creality K1, K1C, K1 SE, K1 Max and Ender-3 V4 are imported.** They were
+  listed as compatible but never reached the device.
+- **Printers removed from your account now leave the device.** On a box whose
+  settings storage was full, a smaller list could not be saved: it kept every
+  printer it had ever imported, while saying it had updated. It now makes room
+  first, and says so if a list still does not fit.
+- **Settings › Printers shows the account as it is now.** The list it refreshes
+  on the way in is now drawn when it arrives, not on the next home screen.
 - **The FlashForge Creator 5 case has a corrected frame**, in the bare parts
   and in the Bambu Studio project, and its Fusion source is published beside
   them.

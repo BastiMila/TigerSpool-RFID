@@ -9,10 +9,7 @@
 // kilobyte of internal RAM a printer's connection occupies. The full reasoning
 // and every measurement behind these numbers is in docs/CONNECTION-BUDGET.md.
 //
-// The limit was never a NUMBER of printers. It is internal RAM, and a printer's
-// share of it depends almost entirely on whether it speaks TLS: /api/memtest
-// measured 40-48 KB for a Bambu or an Anycubic and 2-6 KB for everything else.
-// Ten Elegoos fit where three Bambus do not. So instead of a count, every
+// The limit was never a NUMBER of printers. It is internal RAM, and every
 // printer takes the load slots its connection actually costs - one is one
 // kilobyte - and the device refuses the one that would not fit, at the moment
 // somebody switches it on and can see why, rather than leaving it red later
@@ -20,72 +17,57 @@
 //
 // HOW THE NUMBERS ARE SET. A printer's load slots are the WORST cost measured
 // for it, rounded up to the next kilobyte - a fact about the connection, not a
-// guess.
-// The safety margin is not spread across the brands; it lives once, in the
-// budget. (It used to be spread, "rounded up by about a fifth", and that was
-// not true: three brands sat at or above their count, and it only went
-// unnoticed because the first Bambu over-counted by enough to hide them.)
+// guess. The safety margin lives once, in the budget, not spread across brands.
 //
-// Five passes of /api/memtest on 2026-09-10, every link closed and the account
-// sync held off, printers opened one at a time and read after ten settled
-// seconds. Worst case per connection, internal RAM:
+// TLS IN PSRAM CHANGED EVERY NUMBER. Until 2026-10-05 mbedTLS allocated in
+// internal RAM, and a TLS printer cost 40-50 KB of it: three TLS sessions was
+// the ceiling, and the presence beat beside them failed its handshake.
+// tls::usePsram() moves those buffers to PSRAM; a TLS printer now costs about
+// what a WebSocket does. /api/memtest?all=1, 2026-10-05, bench board, every
+// link closed, opened one at a time, read after ten settled seconds - one
+// pass, all eight up at the end with 149 KB still free:
 //
-//   first Bambu in cloud mode   48.5 KB  -> 50   opens the TLS session every
-//   each further cloud Bambu     3.6 KB  ->  4   cloud Bambu shares
-//   Anycubic                    40.4 KB  -> 41   TLS
-//   Creality                     5.6 KB  ->  6   a WebSocket
-//   Snapmaker                    4.9 KB  ->  5   a WebSocket
-//   Elegoo                       2.5 KB  ->  3   plain MQTT, no TLS
-//   FlashForge                   2.0 KB  ->  2   HTTP, nothing held
-//   Bambu in LAN mode           NOT MEASURED -> 50
+//   first Bambu in cloud mode    8.3 KB  ->  9   was 50
+//   each further cloud Bambu     5.2 KB  ->  6   was 4
+//   Bambu in LAN mode            5.3 KB  ->  6   was 50, never measured before
+//   first Anycubic in cloud      5.3 KB  ->  6   was 50
+//   Creality                     4.5 KB  ->  6   kept: 5.6 KB measured before
+//   Snapmaker                    4.7 KB  ->  5
+//   Elegoo                       0.7 KB  ->  3   kept: 2.5 KB measured before
+//   FlashForge                   0.1 KB  ->  2   kept: 2.0 KB measured before
 //
-// The LAN Bambu is the one assumption left: both on the bench were switched
-// off at every pass. It is charged as one TLS session because that is what it
-// opens - the same client, the same broker protocol - but that is reasoning,
-// not a reading, and the first bench with one switched on should replace it.
+// Two figures are still reasoning, not readings: an Anycubic in LAN mode and a
+// further cloud Anycubic. Both are charged as the TLS printer measured beside
+// them; the first bench with one switched on should replace them.
 //
-// THE BUDGET. The device starts with 198-203 KB of internal RAM free; 32 KB is
-// the survival floor, which leaves about 166. 160 load slots keeps 6 KB of that
-// for what this model does not count - a web page being served, a JSON document
-// being parsed. It was 150, with 16 KB kept; it was raised to 160 on purpose,
-// trading ten kilobytes of that reserve for room for one more light printer or
-// a LAN Bambu beside a full bench. The reserve is thin now, and that is safe
-// only because it is not what stops a crash: the 32 KB floor and the sustained
-// low-memory closer in main.cpp are. At worst a peak closes a background link
-// for a moment.
+// THE BUDGET. 183 KB of internal RAM free with no link open; 32 KB is the
+// survival floor, which leaves about 151. 120 load slots keeps about 30 KB for
+// what this model does not count - a web page served, a JSON document parsed,
+// a one-off TLS request's 16 KB task stack (its buffers are in PSRAM now). The
+// reserve is wide on purpose: these numbers come from one pass, not five.
 //
-// Checked against the aggregate as well as per brand: six printers on the
-// bench are 109 load slots here, and measured 103.2 KB.
-//
-// WHAT IT DOES NOT SEE: fragmentation. A new TLS session needs one piece of
-// about 40 KB, and after three sessions the largest free block has been seen as
-// low as 18 KB. 160 load slots caps TLS sessions at three, which is also the
-// ceiling observed: the cheapest four TLS sessions - one cloud Bambu and three
-// Anycubics - come to 173, over the budget before a single light printer. The
-// two agree by arithmetic rather than by design. A one-off TLS request - an
-// account sync, an update check - is kept possible by the stand-down in
-// main.cpp, not by this budget.
+// In practice the binding limit is now the link count, MAX_LINKS in main.cpp:
+// ten links of typical printers are about 60 load slots.
 //
 // A brand missing from loadSlotsFor() costs 0 and is never refused: a new
 // backend is not finished until it is measured and listed here.
 namespace budget {
 
-constexpr uint16_t LOAD_SLOTS = 160;
+constexpr uint16_t LOAD_SLOTS = 120;
 
 // Load slots for one printer. `sharesCloud` is true when a cloud printer of the
 // same brand has already been counted, so this one rides on its session.
 inline uint16_t loadSlotsFor(const PrinterCfg& p, bool sharesCloud) {
     switch (p.type) {
-        case PT_BAMBU:     return p.cloud ? (sharesCloud ? 4 : 50) : 50;
+        case PT_BAMBU:     return p.cloud ? (sharesCloud ? 6 : 9) : 6;
         // Like Bambu, every cloud Anycubic of an account shares one session -
         // the broker allows one per account - so only the first pays for it.
-        // The first cloud one measured 51 KB on the bench (a client
-        // certificate on top of the TLS session), so it is charged as the
-        // first cloud Bambu is. The 4 for each further one is NOT measured:
-        // no bench account has had two Anycubics in cloud mode, so it is the
-        // cloud Bambu's measured figure, taken on the reasoning that a further
-        // printer only adds a subscription. Replace it with a reading.
-        case PT_ANYCUBIC:  return p.cloud ? (sharesCloud ? 4 : 50) : 41;
+        // The first cloud one is measured (5.3 KB). A further cloud one and a
+        // LAN one are NOT: no bench account has had either. Both are charged as
+        // the TLS printers measured beside them - a further printer adds a
+        // subscription, a LAN one opens the same TLS client a LAN Bambu does.
+        // Replace them with readings.
+        case PT_ANYCUBIC:  return 6;
         case PT_SNAPMAKER: return 5;
         case PT_CREALITY:  return 6;
         case PT_ELEGOO:    return 3;

@@ -320,7 +320,7 @@ Anycubic. An Elegoo **Combo** has the CANVAS unit and its four colours,
 ## How many printers at once
 
 **The limit is not a number of printers - it is how much memory their
-connections take.** One TigerSpool has a fixed budget of **160 load slots**,
+connections take.** One TigerSpool has a fixed budget of **120 load slots**,
 where one load slot is one kilobyte of the chip's internal RAM, and each printer
 takes what its connection costs:
 
@@ -328,12 +328,12 @@ takes what its connection costs:
 
 | Printer | Load slots |
 |---|---|
-| First Bambu Lab in cloud mode | 50 |
-| Each further Bambu Lab in cloud mode | 4 - they share one connection |
-| Bambu Lab in LAN mode | 50 |
-| Anycubic in LAN mode | 41 |
-| First Anycubic in cloud mode | 50 |
-| Each further Anycubic in cloud mode | 4 - they share one connection |
+| First Bambu Lab in cloud mode | 9 |
+| Each further Bambu Lab in cloud mode | 6 - they share one connection |
+| Bambu Lab in LAN mode | 6 |
+| Anycubic in LAN mode | 6 |
+| First Anycubic in cloud mode | 6 |
+| Each further Anycubic in cloud mode | 6 - they share one connection |
 | Creality | 6 |
 | Snapmaker | 5 |
 | Elegoo | 3 |
@@ -341,14 +341,14 @@ takes what its connection costs:
 
 </div>
 
-The difference is encryption: a Bambu or an Anycubic talks over TLS, which is
-what memory goes on; the others do not. So ten Elegoos fit where three LAN
-Bambus do not.
+A Bambu or an Anycubic talks over TLS, and its encryption buffers live in the
+board's 8 MB of PSRAM, so it costs about what any other printer does. In
+practice the limit is ten printers connected at once.
 
 **Settings > Printers** shows how full the budget is as a percentage. A printer
 that would not fit is refused when you switch it on, with the reason on the
 screen, rather than connecting and failing later. The measurements, the reasons
-for 160, and what the budget does not account for are in
+for 120, and what the budget does not account for are in
 **[docs/CONNECTION-BUDGET.md](docs/CONNECTION-BUDGET.md)**.
 
 ## Documentation
