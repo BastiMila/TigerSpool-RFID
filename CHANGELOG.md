@@ -7,6 +7,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.71.0] - 2026-10-05
+
 ### Changed
 
 - **Many more printers at once.** Encryption now uses the board's 8 MB of
@@ -14,8 +16,10 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   costs about what any other printer does. The old ceiling of about three
   encrypted printers is gone: up to ten printers can be connected together, in
   any mix of brands.
-- **Tiger Studio sees which printers the box can reach, every 30 seconds.**
-  The presence beat no longer fails beside several encrypted printers.
+- **The presence beat no longer fails beside several encrypted printers**, so
+  Tiger Studio hears from the box every 30 seconds again.
+- **A new wiring diagram**, with the optional battery on the BAT connector,
+  and its Cirkit Designer project.
 
 ### Fixed
 
@@ -37,6 +41,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Tiger Studio shows which printers the box can reach** - a green or grey
+  dot in front of each, from what the box itself sees.
 - **A Flash Studio project for the Creator 5**, beside the Bambu Studio one:
   the case sliced for the printer it goes on.
 

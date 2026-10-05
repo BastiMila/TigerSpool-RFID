@@ -18,6 +18,8 @@ message, and reset it to this header.
 
 ## Unreleased
 
+## 2026-10-05 - Many more printers at once, a presence beat that holds, sessions closed on restart (released in 1.71.0)
+
 ### Fixed
 
 - Account import on a full NVS: positions past the new list were overwritten
