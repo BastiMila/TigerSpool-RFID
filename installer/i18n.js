@@ -1,6 +1,6 @@
 // Translations for the web installer.
 //
-// The nine languages the device itself speaks (firmware/src/i18n.cpp).
+// The eleven languages the device itself speaks (firmware/src/i18n.cpp).
 // Somebody who reads the box in Polish also reads the page that flashes it in
 // Polish. `pt` and `pt-pt` are kept apart on purpose: that split exists in
 // the firmware too, and Brazilian and European Portuguese differ in exactly the
@@ -49,7 +49,7 @@ en: {
   serial_b: "The usual cause is a charge-only USB cable. The board lights up, the screen works, and no computer ever sees it. Try a cable you know transfers files.",
 
   s3_title: "Set it up on the box",
-  a1_html: "<b>Pick your language.</b> Nine of them, before anything else.",
+  a1_html: "<b>Pick your language.</b> Eleven of them, before anything else.",
   a2_html: "<b>Join Wi-Fi.</b> The box shows a QR code. Scan it with your phone and a page opens listing the networks it can see — pick yours and type the password on the phone. Nothing is typed on the small screen, and the box does not reboot.",
   a3_html: "<b>Sign in</b> to your TigerTag account, by e-mail or with Google through a second QR code.",
   a4_html: "<b>Your printers arrive</b> from your account.",
@@ -112,7 +112,7 @@ fr: {
   serial_b: "La cause habituelle est un câble USB de charge seule. La carte s'allume, l'écran fonctionne, et aucun ordinateur ne la voit. Essayez un câble dont vous savez qu'il transfère des fichiers.",
 
   s3_title: "La configurer sur le boîtier",
-  a1_html: "<b>Choisissez votre langue.</b> Neuf, avant toute chose.",
+  a1_html: "<b>Choisissez votre langue.</b> Onze, avant toute chose.",
   a2_html: "<b>Rejoignez le Wi-Fi.</b> Le boîtier affiche un QR code. Scannez-le avec votre téléphone : une page s'ouvre avec les réseaux qu'il voit — choisissez le vôtre et tapez le mot de passe sur le téléphone. Rien n'est saisi sur le petit écran, et le boîtier ne redémarre pas.",
   a3_html: "<b>Connectez-vous</b> à votre compte TigerTag, par e-mail ou avec Google via un second QR code.",
   a4_html: "<b>Vos imprimantes arrivent</b> depuis votre compte.",
@@ -175,7 +175,7 @@ de: {
   serial_b: "Meist liegt es an einem reinen Ladekabel. Das Board leuchtet, das Display läuft, und kein Computer sieht es. Nehmen Sie ein Kabel, von dem Sie wissen, dass es Dateien überträgt.",
 
   s3_title: "Am Gerät einrichten",
-  a1_html: "<b>Sprache wählen.</b> Neun davon, noch vor allem anderen.",
+  a1_html: "<b>Sprache wählen.</b> Elf davon, noch vor allem anderen.",
   a2_html: "<b>WLAN verbinden.</b> Das Gerät zeigt einen QR-Code. Mit dem Telefon scannen, eine Seite listet die sichtbaren Netze — Ihres wählen und das Passwort am Telefon eingeben. Nichts wird auf dem kleinen Display getippt, und das Gerät startet nicht neu.",
   a3_html: "<b>Anmelden</b> an Ihrem TigerTag-Konto, per E-Mail oder mit Google über einen zweiten QR-Code.",
   a4_html: "<b>Ihre Drucker erscheinen</b> aus Ihrem Konto.",
@@ -238,7 +238,7 @@ es: {
   serial_b: "La causa habitual es un cable USB de solo carga. La placa se enciende, la pantalla funciona, y ningún ordenador la ve. Prueba un cable que sepas que transfiere archivos.",
 
   s3_title: "Configurarla en la caja",
-  a1_html: "<b>Elige tu idioma.</b> Nueve, antes que nada.",
+  a1_html: "<b>Elige tu idioma.</b> Once, antes que nada.",
   a2_html: "<b>Conecta el Wi-Fi.</b> La caja muestra un código QR. Escanéalo con el móvil y se abre una página con las redes que ve — elige la tuya y escribe la contraseña en el móvil. Nada se teclea en la pantalla pequeña, y la caja no se reinicia.",
   a3_html: "<b>Inicia sesión</b> en tu cuenta TigerTag, por correo o con Google mediante un segundo QR.",
   a4_html: "<b>Tus impresoras llegan</b> desde tu cuenta.",
@@ -301,7 +301,7 @@ it: {
   serial_b: "La causa abituale è un cavo USB di sola ricarica. La scheda si accende, lo schermo funziona, e nessun computer la vede. Prova un cavo che sai trasferire file.",
 
   s3_title: "Configurarla sulla scatola",
-  a1_html: "<b>Scegli la lingua.</b> Nove, prima di tutto il resto.",
+  a1_html: "<b>Scegli la lingua.</b> Undici, prima di tutto il resto.",
   a2_html: "<b>Collegati al Wi-Fi.</b> La scatola mostra un QR. Inquadralo col telefono e si apre una pagina con le reti che vede — scegli la tua e digita la password sul telefono. Nulla si digita sullo schermo piccolo, e la scatola non si riavvia.",
   a3_html: "<b>Accedi</b> al tuo account TigerTag, via e-mail o con Google tramite un secondo QR.",
   a4_html: "<b>Le tue stampanti arrivano</b> dal tuo account.",
@@ -364,7 +364,7 @@ pl: {
   serial_b: "Zwykle winny jest kabel USB tylko do ładowania. Płytka się świeci, ekran działa, a żaden komputer jej nie widzi. Spróbuj kabla, o którym wiesz, że przesyła pliki.",
 
   s3_title: "Konfiguracja na urządzeniu",
-  a1_html: "<b>Wybierz język.</b> Dziewięć, zanim cokolwiek innego.",
+  a1_html: "<b>Wybierz język.</b> Jedenaście, zanim cokolwiek innego.",
   a2_html: "<b>Połącz z Wi-Fi.</b> Urządzenie pokazuje kod QR. Zeskanuj go telefonem — otworzy się strona z widocznymi sieciami; wybierz swoją i wpisz hasło na telefonie. Nic nie wpisuje się na małym ekranie, a urządzenie się nie restartuje.",
   a3_html: "<b>Zaloguj się</b> na konto TigerTag, e-mailem albo przez Google drugim kodem QR.",
   a4_html: "<b>Twoje drukarki pojawiają się</b> z konta.",
@@ -427,7 +427,7 @@ pt: {
   serial_b: "A causa habitual é um cabo USB só de carga. A placa acende, a tela funciona, e nenhum computador a enxerga. Tente um cabo que você sabe que transfere arquivos.",
 
   s3_title: "Configurar na caixa",
-  a1_html: "<b>Escolha seu idioma.</b> Nove, antes de tudo.",
+  a1_html: "<b>Escolha seu idioma.</b> Onze, antes de tudo.",
   a2_html: "<b>Entre no Wi-Fi.</b> A caixa mostra um QR code. Escaneie com o celular e abre uma página com as redes que ela vê — escolha a sua e digite a senha no celular. Nada é digitado na tela pequena, e a caixa não reinicia.",
   a3_html: "<b>Entre</b> na sua conta TigerTag, por e-mail ou com Google via um segundo QR code.",
   a4_html: "<b>Suas impressoras chegam</b> da sua conta.",
@@ -490,7 +490,7 @@ pt: {
   serial_b: "A causa habitual é um cabo USB apenas de carga. A placa acende, o ecrã funciona, e nenhum computador a vê. Experimente um cabo que saiba que transfere ficheiros.",
 
   s3_title: "Configurá-la na caixa",
-  a1_html: "<b>Escolha o seu idioma.</b> Nove, antes de tudo o resto.",
+  a1_html: "<b>Escolha o seu idioma.</b> Onze, antes de tudo o resto.",
   a2_html: "<b>Ligue-se ao Wi-Fi.</b> A caixa mostra um código QR. Leia-o com o telemóvel e abre-se uma página com as redes que ela vê — escolha a sua e escreva a palavra-passe no telemóvel. Nada é escrito no ecrã pequeno, e a caixa não reinicia.",
   a3_html: "<b>Inicie sessão</b> na sua conta TigerTag, por e-mail ou com Google através de um segundo código QR.",
   a4_html: "<b>As suas impressoras chegam</b> da sua conta.",
@@ -553,7 +553,7 @@ zh: {
   serial_b: "通常是因为用了只能充电的 USB 线。板子会亮、屏幕会工作，但电脑始终看不到它。换一根你确定能传文件的线试试。",
 
   s3_title: "在设备上完成设置",
-  a1_html: "<b>选择语言。</b>共九种，在其他一切之前。",
+  a1_html: "<b>选择语言。</b>共十一种，在其他一切之前。",
   a2_html: "<b>连接 Wi-Fi。</b>设备显示一个二维码。用手机扫描后会打开一个页面，列出它能看到的网络 —— 选择你的网络并在手机上输入密码。小屏幕上不用输入任何内容，设备也不会重启。",
   a3_html: "<b>登录</b>你的 TigerTag 账户，用邮箱，或者通过第二个二维码用 Google 登录。",
   a4_html: "<b>你的打印机会出现</b>，来自你的账户。",
@@ -587,6 +587,132 @@ zh: {
   f_releases: "版本",
   f_manifest: "version.json",
   f_license: "MIT 许可",
+},
+
+ru: {
+  lang_name: "Русский",
+  lang_label: "Выберите язык",
+  theme_label: "Переключить светлую и тёмную тему",
+  h1_install: "Установка",
+  tagline: "Подключите плату к этому компьютеру, нажмите «Установить» и подождите около минуты. Никаких инструментов и командной строки.",
+  fw: "Прошивка",
+
+  s1_title: "Что вам понадобится",
+  s1_lede: "Две платы, четыре провода и кабель, который передаёт данные.",
+  n_board_html: "Плата <b>Waveshare ESP32-S3 2inch Capacitive Touch Display</b>.",
+  n_pn532_html: "<b>NFC-модуль PN532</b> версии V3, оба DIP-переключателя в положении <code>0</code> / OFF, подключённый к <b>GPIO44</b> и <b>GPIO43</b> — ни в коем случае не к GPIO6/7. Четыре провода, они идут в комплекте с модулем. <a href=\"https://github.com/TigerTag-Project/TigerSpool-RFID/blob/main/docs/WIRING.md\">Схема подключения</a>.",
+  n_cable_html: "<b>Кабель USB-C — USB-A, передающий данные</b>, а не только заряжающий.",
+  n_browser_html: "<b>Chrome, Edge или Opera</b> на настольном компьютере или ноутбуке.",
+  n_account_html: "<b>Аккаунт TigerTag</b>, созданный в <a href=\"https://github.com/TigerTag-Project/TigerTag-Studio-Manager\">Tiger Studio Manager</a> — см. шаг 4.",
+
+  s2_title: "Установка",
+  cta_btn: "Установить TigerSpool",
+  cta_note: "Записывает загрузчик, таблицу разделов, выбор загрузки и прошивку — те же четыре образа, что опубликованы в релизе.",
+  unsup_t: "Этот браузер не умеет прошивать платы.",
+  unsup_b_html: "Для установки нужен WebSerial, который поддерживают только Chrome, Edge и Opera на настольном компьютере или ноутбуке. Safari, Firefox и все мобильные браузеры не подходят. Откройте эту страницу в одном из этих трёх или <a href=\"https://github.com/TigerTag-Project/TigerSpool-RFID#build-it-yourself\">соберите и прошейте самостоятельно</a>.",
+  erase_t: "Выбирайте Erase только для платы, которую настраиваете впервые.",
+  erase_b: "Стирание очищает раздел NVS, где TigerSpool хранит данные Wi-Fi, сессию TigerTag и импортированные принтеры. Обычная установка всё это не трогает — для этого и нужны два OTA-слота.",
+  serial_t: "Не предлагается последовательный порт?",
+  serial_b: "Обычная причина — кабель USB только для зарядки. Плата загорается, экран работает, а компьютер её не видит. Попробуйте кабель, который точно передаёт файлы.",
+
+  s3_title: "Настройка на устройстве",
+  a1_html: "<b>Выберите язык.</b> Их одиннадцать, и это первый шаг.",
+  a2_html: "<b>Подключитесь к Wi-Fi.</b> Устройство покажет QR-код. Отсканируйте его телефоном — откроется страница со списком видимых сетей: выберите свою и введите пароль на телефоне. На маленьком экране ничего вводить не нужно, а устройство не перезагружается.",
+  a3_html: "<b>Войдите</b> в аккаунт TigerTag по e-mail или через Google с помощью второго QR-кода.",
+  a4_html: "<b>Ваши принтеры появятся</b> из аккаунта.",
+  s3_foot: "Затем поднесите катушку с меткой к устройству, нажмите нужный слот и подтвердите. Дальше оно обновляется само по воздуху — эта страница нужна только для первой установки.",
+
+  s4_title: "Если список принтеров пуст",
+  s4_lede: "Это не неисправность, и на устройстве чинить нечего. Оно показывает именно то, что есть в вашем аккаунте.",
+  s4_body_html: "У TigerSpool нет клавиатуры, и сообщить ему адрес принтера нельзя — это сделано намеренно. Принтеры один раз добавляются в <a href=\"https://github.com/TigerTag-Project/TigerTag-Studio-Manager\"><b>Tiger Studio Manager</b></a> вместе с кодами доступа, и каждый ваш TigerSpool читает один и тот же список. Добавьте принтер там — и он появится на устройстве при следующей синхронизации.",
+  s4_1_html: "Установите <b>Tiger Studio Manager</b> и создайте аккаунт TigerTag.",
+  s4_2: "Добавьте в него свои принтеры.",
+  s4_3_html: "<b>Затем</b> войдите в аккаунт на устройстве.",
+
+  cart_title: "Что купить",
+  cart_lede: "Три вещи. Электроника одна и та же для любого принтера — меняется только напечатанный корпус.",
+  p_board: "Waveshare ESP32-S3 2inch Touch Display",
+  p_board_n: "240×320 IPS, 16 МБ флеш-памяти, 8 МБ PSRAM",
+  p_pn532: "NFC-модуль PN532, V3",
+  p_pn532_n: "продаётся парой — запасной за минуту снимает сомнения в подключении",
+  p_cable_html: "Кабель USB-A — USB-C, <b>для данных</b>",
+  p_cable_n: "скорость не важна, а вот кабель только для зарядки не подойдёт",
+  buy: "Amazon",
+  cart_warn_html: "PN532 должен быть <b>V3 с DIP-переключателями</b>, выставленными на HSU. Клоны без переключателей не умеют UART, а эта прошивка говорит только на нём.",
+  cart_total_html: "Всего около <b>40 €</b>, плюс филамент.",
+  cart_aff: "Некоторые ссылки — партнёрские ссылки Amazon: они приносят проекту небольшую комиссию, а вам ничего не стоят. Ничего не выбрано из-за партнёрства — подойдёт любой равноценный модуль.",
+  cart_bom: "Полный список комплектующих",
+  cart_wiring: "Схема подключения",
+
+  f_source: "Исходный код",
+  f_wiring: "Подключение",
+  f_parts: "Детали",
+  f_releases: "Релизы",
+  f_manifest: "version.json",
+  f_license: "Лицензия MIT",
+},
+
+nl: {
+  lang_name: "Nederlands",
+  lang_label: "Kies een taal",
+  theme_label: "Wisselen tussen licht en donker",
+  h1_install: "Installeren",
+  tagline: "Sluit het bord aan op deze computer, druk op Installeren en wacht ongeveer een minuut. Geen toolchain, geen opdrachtregel.",
+  fw: "Firmware",
+
+  s1_title: "Wat je nodig hebt",
+  s1_lede: "Twee borden, vier draden en een kabel die data doorgeeft.",
+  n_board_html: "Een <b>Waveshare ESP32-S3 2inch Capacitive Touch Display</b>-bord.",
+  n_pn532_html: "Een <b>PN532 NFC-module</b>, V3, beide DIP-schakelaars op <code>0</code> / OFF, aangesloten op <b>GPIO44</b> en <b>GPIO43</b> — nooit op GPIO6/7. Vier draden, en die zitten bij de module. <a href=\"https://github.com/TigerTag-Project/TigerSpool-RFID/blob/main/docs/WIRING.md\">Bedradingsschema</a>.",
+  n_cable_html: "Een <b>USB-C-naar-USB-A-kabel die data doorgeeft</b>, geen kabel die alleen oplaadt.",
+  n_browser_html: "<b>Chrome, Edge of Opera</b> op een desktop of laptop.",
+  n_account_html: "Een <b>TigerTag-account</b>, aangemaakt in <a href=\"https://github.com/TigerTag-Project/TigerTag-Studio-Manager\">Tiger Studio Manager</a> — zie stap 4.",
+
+  s2_title: "Installeren",
+  cta_btn: "TigerSpool installeren",
+  cta_note: "Schrijft de bootloader, de partitietabel, de bootkeuze en de firmware — dezelfde vier images die bij de release horen.",
+  unsup_t: "Deze browser kan geen bord flashen.",
+  unsup_b_html: "Installeren vraagt WebSerial, dat alleen Chrome, Edge en Opera ondersteunen, op een desktop of laptop. Safari, Firefox en alle mobiele browsers vallen af. Open deze pagina in een van die drie, of <a href=\"https://github.com/TigerTag-Project/TigerSpool-RFID#build-it-yourself\">bouw en flash het zelf</a>.",
+  erase_t: "Kies Erase alleen voor een bord dat je voor het eerst instelt.",
+  erase_b: "Wissen maakt de NVS-partitie leeg, waar een TigerSpool zijn wifigegevens, zijn TigerTag-sessie en zijn geïmporteerde printers bewaart. Een gewone installatie laat dat allemaal met rust — daar dienen de twee OTA-slots voor.",
+  serial_t: "Geen seriële poort beschikbaar?",
+  serial_b: "De gebruikelijke oorzaak is een USB-kabel die alleen oplaadt. Het bord licht op, het scherm werkt, en toch ziet geen enkele computer het. Probeer een kabel waarvan je zeker weet dat hij bestanden overdraagt.",
+
+  s3_title: "Instellen op het apparaat",
+  a1_html: "<b>Kies je taal.</b> Er zijn er elf, vóór al het andere.",
+  a2_html: "<b>Maak verbinding met wifi.</b> Het apparaat toont een QR-code. Scan hem met je telefoon en er opent een pagina met de netwerken die het ziet — kies het jouwe en typ het wachtwoord op de telefoon. Op het kleine scherm wordt niets getypt, en het apparaat start niet opnieuw op.",
+  a3_html: "<b>Log in</b> op je TigerTag-account, met e-mail of met Google via een tweede QR-code.",
+  a4_html: "<b>Je printers verschijnen</b> vanuit je account.",
+  s3_foot: "Houd daarna een spoel met tag tegen het apparaat, tik op het gewenste slot en bevestig. Vanaf dan werkt het zichzelf draadloos bij — deze pagina is alleen voor de eerste installatie.",
+
+  s4_title: "Als de printerlijst leeg is",
+  s4_lede: "Dat is geen storing, en er valt niets te repareren op het apparaat. Het toont precies wat je account bevat.",
+  s4_body_html: "Een TigerSpool heeft geen toetsenbord en je kunt het geen printeradres opgeven — dat is bewust zo. Printers leg je één keer vast in <a href=\"https://github.com/TigerTag-Project/TigerTag-Studio-Manager\"><b>Tiger Studio Manager</b></a>, samen met hun toegangscodes, en elke TigerSpool die je hebt leest dezelfde lijst. Voeg de printer daar toe en hij verschijnt bij de volgende synchronisatie op het apparaat.",
+  s4_1_html: "Installeer <b>Tiger Studio Manager</b> en maak je TigerTag-account aan.",
+  s4_2: "Voeg je printers eraan toe.",
+  s4_3_html: "<b>Log daarna</b> in op het apparaat.",
+
+  cart_title: "Wat je moet kopen",
+  cart_lede: "Drie dingen. De elektronica is hetzelfde voor elke printer — alleen de geprinte behuizing verschilt.",
+  p_board: "Waveshare ESP32-S3 2inch Touch Display",
+  p_board_n: "240×320 IPS, 16 MB flash, 8 MB PSRAM",
+  p_pn532: "PN532 NFC-module, V3",
+  p_pn532_n: "per twee verkocht — de reserve lost een bedradingstwijfel in een minuut op",
+  p_cable_html: "USB-A-naar-USB-C-kabel, <b>data</b>",
+  p_cable_n: "snelheid maakt niet uit; een kabel die alleen oplaadt wel",
+  buy: "Amazon",
+  cart_warn_html: "De PN532 moet een <b>V3 met DIP-schakelaars</b> zijn, ingesteld op HSU. De namaakmodules zonder schakelaars kunnen geen UART, en deze firmware spreekt niets anders.",
+  cart_total_html: "In totaal ongeveer <b>40 €</b>, plus filament.",
+  cart_aff: "Sommige links zijn Amazon-affiliatelinks: ze leveren het project een kleine commissie op, zonder extra kosten voor jou. Niets is gekozen omdat het affiliate is — elke gelijkwaardige module werkt.",
+  cart_bom: "Volledige materiaallijst",
+  cart_wiring: "Bedradingsschema",
+
+  f_source: "Broncode",
+  f_wiring: "Bedrading",
+  f_parts: "Onderdelen",
+  f_releases: "Releases",
+  f_manifest: "version.json",
+  f_license: "MIT-licentie",
 },
 
 };
