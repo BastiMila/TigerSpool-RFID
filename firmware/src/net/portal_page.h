@@ -170,9 +170,17 @@ scanning:"A procurar",name:"Nome da rede",kName:"Nome",kAddr:"Endereço",kMac:"M
 zh:{net:"选择网络",pw:"密码",join:"连接",other:"其他网络",rescan:"重新搜索",
 show:"显示密码",back:"返回",joining:"连接中",done:"已连接",
 close:"您可以关闭此页面。",badT:"密码错误",badB:"请检查后重试。",
-scanning:"搜索中",name:"网络名称",kName:"名称",kAddr:"地址",kMac:"MAC"}};
+scanning:"搜索中",name:"网络名称",kName:"名称",kAddr:"地址",kMac:"MAC"},
+ru:{net:"Выберите сеть",pw:"Пароль",join:"Подключиться",other:"Другая сеть",rescan:"Искать снова",
+show:"Показать пароль",back:"Назад",joining:"Подключение",done:"Подключено",
+close:"Можно закрыть эту страницу.",badT:"Неверный пароль",badB:"Проверьте его и повторите попытку.",
+scanning:"Поиск",name:"Название сети",kName:"Название",kAddr:"Адрес",kMac:"MAC"},
+nl:{net:"Kies een netwerk",pw:"Wachtwoord",join:"Verbinden",other:"Ander netwerk",rescan:"Opnieuw zoeken",
+show:"Wachtwoord tonen",back:"Terug",joining:"Verbinden",done:"Verbonden",
+close:"Je kunt deze pagina sluiten.",badT:"Verkeerd wachtwoord",badB:"Controleer het en probeer het opnieuw.",
+scanning:"Zoeken",name:"Netwerknaam",kName:"Naam",kAddr:"Adres",kMac:"MAC"}};
 var N={en:"English",fr:"Français",de:"Deutsch",es:"Español",it:"Italiano",pl:"Polski",
-pt:"Português (BR)",ptpt:"Português (PT)",zh:"中文"};
+pt:"Português (BR)",ptpt:"Português (PT)",zh:"中文",ru:"Русский",nl:"Nederlands"};
 var st={lang:"%LANG%",view:"scanning",pick:"",light:false,nets:[],info:null,open:-1,bad:false};
 if(!L[st.lang])st.lang="en";
 var V=document.getElementById("v"),LB=document.getElementById("lb"),LM=document.getElementById("lm");
