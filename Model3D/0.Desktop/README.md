@@ -39,6 +39,18 @@ No screws, no inserts, no hardware to buy for the case: it is 100 % 3D
 printed. The board and the reader go into the printed parts, and the parts
 assemble on their own. Every part is designed to print without supports.
 
+| Step 1 | Step 2 |
+|---|---|
+| <img src="Images/Assembly/tigerspool-desk-assembly-step-1.jpg" alt="Step 1: the board in its place, the four wires plugged on its header" width="320"> | <img src="Images/Assembly/tigerspool-desk-assembly-step-2.jpg" alt="Step 2: the cover sliding over the board" width="320"> |
+
+| Step 3 | Step 4 |
+|---|---|
+| <img src="Images/Assembly/tigerspool-desk-assembly-step-3.jpg" alt="Step 3: the reader in the base, its pins through the wall" width="320"> | <img src="Images/Assembly/tigerspool-desk-assembly-step-4.jpg" alt="Step 4: the display being fitted onto the base, the wires tucked inside" width="320"> |
+
+| Step 5 |
+|---|
+| <img src="Images/Assembly/tigerspool-desk-assembly-step-5.jpg" alt="Step 5: assembled, the display seated on the base" width="320"> |
+
 ## Print settings
 
 PLA, 0.4 mm nozzle and 15 % infill everywhere. The rest is what each project
