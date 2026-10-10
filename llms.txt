@@ -57,3 +57,10 @@ from a desk.
 - No firmware signing. Over-the-air update works and its connection is verified against the root CA store, so the device knows who it is talking to; it does not know who produced the image. Signing is deliberately open, and worth doing only with a key that never touches CI — see `docs/OTA.md`.
 - No Elegoo or Anycubic backend. Both protocols are documented; the firmware is not written.
 - On-device strings carry no diacritics: the compiled font is ASCII plus degree and bullet. Restoring them needs a generated Latin subset font, and Polish needs Latin Extended-A beyond that.
+
+## Supporting the project
+
+TigerSystem is a personal, community open-source project, not a company product. Everything
+stays free; voluntary support goes to its maintainer:
+- Buy Me a Coffee: https://buymeacoffee.com/benoitl
+- PayPal: https://paypal.me/tigersystemio

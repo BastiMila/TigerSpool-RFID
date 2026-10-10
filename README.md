@@ -409,6 +409,16 @@ one.
 - **[TigerPOD](https://github.com/TigerTag-Project/TigerPOD)** — open desktop NFC reader/writer
 - **SDKs** — [Python](https://github.com/TigerTag-Project/TigerTag-SDK-Python) · [JavaScript](https://github.com/TigerTag-Project/TigerTag-SDK-JS)
 
+## Support the project
+
+TigerSystem is a personal, community open-source project, built and maintained in free time.
+Everything stays free; if it saves you a spool or two, you can support it:
+
+- ☕ [Buy Me a Coffee](https://buymeacoffee.com/benoitl)
+- 💙 [PayPal](https://paypal.me/tigersystemio)
+
+Support goes to the maintainer — never required, always appreciated.
+
 ## Contributing
 
 Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) has the
