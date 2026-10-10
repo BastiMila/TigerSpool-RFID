@@ -1,9 +1,10 @@
 # Desktop stand
 
-| Spool on the left | Spool on the right |
-|---|---|
-| <img src="Images/Left/tigerspool-desk-left-photo-front.jpg" alt="The desktop stand, spool on the left" width="320"> | <img src="Images/Right/tigerspool-desk-right-photo-front.jpg" alt="The desktop stand, spool on the right" width="320"> |
-| <img src="Images/Left/tigerspool-desk-left-photo-side.jpg" alt="Spool on the left, from the side" width="320"> | <img src="Images/Right/tigerspool-desk-right-photo-side.jpg" alt="Spool on the right, from the side" width="320"> |
+<table align="center">
+<tr><th align="center">Spool on the left</th><th align="center">Spool on the right</th></tr>
+<tr><td align="center"><img src="Images/Left/tigerspool-desk-left-photo-front.jpg" alt="The desktop stand, spool on the left" width="320"></td><td align="center"><img src="Images/Right/tigerspool-desk-right-photo-front.jpg" alt="The desktop stand, spool on the right" width="320"></td></tr>
+<tr><td align="center"><img src="Images/Left/tigerspool-desk-left-photo-side.jpg" alt="Spool on the left, from the side" width="320"></td><td align="center"><img src="Images/Right/tigerspool-desk-right-photo-side.jpg" alt="Spool on the right, from the side" width="320"></td></tr>
+</table>
 
 **Print it from MakerWorld:**
 [spool on the left](https://makerworld.com/models/3360492-tigerspool-desktop-stand-spool-on-the-left) ·
@@ -13,7 +14,9 @@ A free-standing stand for the bench or the desk. It is not attached to any
 printer, so it fits every one of them - the base TigerSpool, which the
 [printer integrations](../README.md) build on.
 
-<img src="Images/Left/tigerspool-desk-left-render.png" alt="The stand with a spool resting against the reader" width="280">
+<p align="center">
+  <img src="Images/Left/tigerspool-desk-left-render.png" alt="The stand with a spool resting against the reader" width="280">
+</p>
 
 It comes in two mirrored versions: the spool rests **on the left** of the
 screen, or **on the right**. Pick the one that suits where it sits.
@@ -39,17 +42,20 @@ No screws, no inserts, no hardware to buy for the case: it is 100 % 3D
 printed. The board and the reader go into the printed parts, and the parts
 assemble on their own. Every part is designed to print without supports.
 
-| Step 1 | Step 2 |
-|---|---|
-| <img src="Images/Assembly/tigerspool-desk-assembly-step-1.jpg" alt="Step 1: the board in its place, the four wires plugged on its header" width="320"> | <img src="Images/Assembly/tigerspool-desk-assembly-step-2.jpg" alt="Step 2: the cover sliding over the board" width="320"> |
+<table align="center">
+<tr><th align="center">Step 1</th><th align="center">Step 2</th></tr>
+<tr><td align="center"><img src="Images/Assembly/tigerspool-desk-assembly-step-1.jpg" alt="Step 1" width="320"></td><td align="center"><img src="Images/Assembly/tigerspool-desk-assembly-step-2.jpg" alt="Step 2" width="320"></td></tr>
+</table>
 
-| Step 3 | Step 4 |
-|---|---|
-| <img src="Images/Assembly/tigerspool-desk-assembly-step-3.jpg" alt="Step 3: the reader in the base, its pins through the wall" width="320"> | <img src="Images/Assembly/tigerspool-desk-assembly-step-4.jpg" alt="Step 4: the display being fitted onto the base, the wires tucked inside" width="320"> |
+<table align="center">
+<tr><th align="center">Step 3</th><th align="center">Step 4</th></tr>
+<tr><td align="center"><img src="Images/Assembly/tigerspool-desk-assembly-step-3.jpg" alt="Step 3" width="320"></td><td align="center"><img src="Images/Assembly/tigerspool-desk-assembly-step-4.jpg" alt="Step 4" width="320"></td></tr>
+</table>
 
-| Step 5 |
-|---|
-| <img src="Images/Assembly/tigerspool-desk-assembly-step-5.jpg" alt="Step 5: assembled, the display seated on the base" width="320"> |
+<table align="center">
+<tr><th align="center">Step 5</th></tr>
+<tr><td align="center"><img src="Images/Assembly/tigerspool-desk-assembly-step-5.jpg" alt="Step 5" width="320"></td></tr>
+</table>
 
 ## Print settings
 
@@ -68,15 +74,17 @@ it already. Print it in one colour and it still works.
 
 ## The parts
 
-| Spool on the left | Spool on the right |
-|---|---|
-| <img src="Images/Left/tigerspool-desk-left-bambu-studio-plate.png" alt="Plate, spool on the left" width="320"> | <img src="Images/Right/tigerspool-desk-right-bambu-studio-plate.png" alt="Plate, spool on the right" width="320"> |
+<table align="center">
+<tr><th align="center">Spool on the left</th><th align="center">Spool on the right</th></tr>
+<tr><td align="center"><img src="Images/Left/tigerspool-desk-left-bambu-studio-plate.png" alt="Plate, spool on the left" width="320"></td><td align="center"><img src="Images/Right/tigerspool-desk-right-bambu-studio-plate.png" alt="Plate, spool on the right" width="320"></td></tr>
+</table>
 
 ### From above
 
-| Spool on the left | Spool on the right |
-|---|---|
-| <img src="Images/Left/tigerspool-desk-left-bambu-studio-top.png" alt="Plate from above, spool on the left" width="320"> | <img src="Images/Right/tigerspool-desk-right-bambu-studio-top.png" alt="Plate from above, spool on the right" width="320"> |
+<table align="center">
+<tr><th align="center">Spool on the left</th><th align="center">Spool on the right</th></tr>
+<tr><td align="center"><img src="Images/Left/tigerspool-desk-left-bambu-studio-top.png" alt="Plate from above, spool on the left" width="320"></td><td align="center"><img src="Images/Right/tigerspool-desk-right-bambu-studio-top.png" alt="Plate from above, spool on the right" width="320"></td></tr>
+</table>
 
 The plate pictures are the slicers' own previews, taken out of the projects;
 the Creality Print ones and a render of each version are in [`Images/Left/`](Images/Left/) and [`Images/Right/`](Images/Right/) too.
