@@ -18,6 +18,21 @@ message, and reset it to this header.
 
 ## Unreleased
 
+## 2026-10-12 - The external spool of an Anycubic without an ACE (released in 1.71.1)
+
+### Fixed
+
+- Anycubic printers with no ACE (Kobra 3, Kobra 3 Max) now show their external
+  spool and can be written (issue #25). They say nothing on `multiColorBox`;
+  their one spool is on the `extfilbox` channel - a single `{type, color}`,
+  read with `getInfo`, set with `setInfo {type, color}`, no box or index. The
+  backend asks for it beside the layout until an ACE layout arrives, draws it as
+  one `S_HOLDER` slot, and routes the write there. LAN subscribes
+  `.../extfilbox/#`; the shared cloud session subscribes it per printer next to
+  `multiColorBox/#` and publishes on either endpoint. Taken from Tiger Studio's
+  driver (`renderer/printers/anycubic`), which reads and writes that spool on
+  the reporter's printer. Compiles clean; not yet seen on a no-ACE printer here.
+
 ## 2026-10-05 - Many more printers at once, a presence beat that holds, sessions closed on restart (released in 1.71.0)
 
 ### Fixed

@@ -7,6 +7,14 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.71.1] - 2026-10-12
+
+### Fixed
+
+- **Anycubic Kobra 3 and Kobra 3 Max without an ACE now show their external
+  spool**, and a scanned spool can be sent to it, in LAN and in cloud mode.
+  The printer was found but its slot list stayed empty.
+
 ## [1.71.0] - 2026-10-05
 
 ### Changed

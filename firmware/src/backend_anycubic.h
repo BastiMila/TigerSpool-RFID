@@ -4,7 +4,7 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
-// Anycubic Kobra 3 V2 / Kobra X and their ACE units, over the LAN.
+// Anycubic Kobra 3 / Kobra 3 Max / Kobra X, with or without ACE units.
 //
 // MQTT on port 9883 with TLS against a self-signed certificate. Neither the
 // credentials nor the topics can be discovered from the printer: /info on port
@@ -25,6 +25,12 @@
 // external unit and is NOT one spool - an ACE Pro 2 reports it with four slots
 // - so it is drawn as a unit like any other. Boxes 0..N are ACE units. Labels
 // are A1..A4 for the first, B1..B4 for the second, matching Tiger Studio.
+//
+// A printer with NO ACE says nothing on multiColorBox. Its one spool is on a
+// channel of its own, extfilbox: a single {type, color} object, read with
+// getInfo and set with setInfo {type, color} - no box, no index. It is drawn
+// as one external slot, labelled like every brand's, and only while no multiColorBox layout has arrived; an
+// ACE printer's box -1 is the external unit and takes precedence.
 class AnycubicBackend : public PrinterBackend {
 public:
     void begin(const PrinterCfg& cfg) override;
@@ -48,9 +54,10 @@ private:
     void rebuild(JsonArrayConst boxes);
     int  findSlot(int box, int index) const;
     void applyLayout(JsonArrayConst boxes);
+    void applyExtfil(JsonObjectConst spool);
     void onMqtt(uint8_t* payload, unsigned int len);
-    String envelope(const char* action, const String& data);
-    bool   send(const String& body);
+    String envelope(const char* type, const char* action, const String& data);
+    bool   send(const char* endpoint, const String& body);
 
     WiFiClientSecure net_;          // one TLS session per printer
     PubSubClient     mqtt_{net_};
@@ -59,7 +66,9 @@ private:
     int       nSlots_ = 0;
     SlotState slots_[AMAX];
     String    host_, devId_, user_, pass_, model_;
-    String    topCmd_, topReport_;
+    String    topCmd_, topReport_, topCmdExt_, topReportExt_;
+    bool      boxSeen_ = false;      // a multiColorBox layout with slots has arrived
+    bool      extfil_  = false;      // the grid is the extfilbox spool alone
     bool      connected_ = false;
     bool      cloud_ = false;        // reached through anycubic_cloud, not the LAN
     String    status_ = "Anycubic: connecting...";

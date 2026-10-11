@@ -28,7 +28,8 @@
 // of memory on the bench.
 namespace anycubic_cloud {
 
-// Called with the raw bytes of one multiColorBox report for that printer.
+// Called with the raw bytes of one multiColorBox or extfilbox report for that
+// printer.
 using Sink = std::function<void(uint8_t* payload, unsigned len)>;
 
 // A cloud-mode backend joins with its broker key and machine type, and brings
@@ -44,8 +45,9 @@ void loop();
 // True when the session is up AND this printer's subscription is in place.
 bool connected(const String& key);
 
-// Publish a multiColorBox command to that printer over the shared session.
-bool publish(const String& key, const String& body);
+// Publish a command to that printer over the shared session. The endpoint is
+// the last topic segment: "multiColorBox" or "extfilbox".
+bool publish(const String& key, const char* endpoint, const String& body);
 
 // Whether a session object exists - what makes a second cloud printer cheap.
 bool active();

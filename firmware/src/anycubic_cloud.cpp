@@ -38,6 +38,7 @@ struct Sub {
     String key;
     String mt;
     String topic;           // what is subscribed: ...v1/+/public/<mt>/<key>/multiColorBox/#
+    String topicExt;        // and ...v1/+/public/<mt>/<key>/extfilbox/# - see attach()
     String prefix;          // the /public/<mt>/<key>/ part every report carries
     anycubic_cloud::Sink sink;
     bool   subscribed = false;
@@ -146,20 +147,26 @@ void onMessage(char* topic, uint8_t* payload, unsigned int len) {
     // Strictly by topic, as bambu_cloud does: a report handed to the wrong
     // printer would show another machine's spools as its own.
     // Everything for one printer arrives under /public/<mt>/<key>/; only the
-    // multiColorBox reports go to the backend, and the rest - print progress,
+    // multiColorBox and extfilbox reports go to the backend, and the rest - print progress,
     // temperatures - is dropped here. Nothing is copied or queued: every
     // message lands in PubSubClient's one buffer and is gone when this returns.
-    const char* mcb = strstr(topic, "/multiColorBox/report");
+    const bool mine = strstr(topic, "/multiColorBox/report") || strstr(topic, "/extfilbox/");
     for (int i = 0; i < s_n; i++) {
         if (!strstr(topic, s_subs[i].prefix.c_str())) continue;
-        if (mcb) s_subs[i].sink(payload, len);
+        if (mine) s_subs[i].sink(payload, len);
         return;
     }
 }
 
+bool subscribeOne(const Sub& s) {
+    const bool a = s_mqtt->subscribe(s.topic.c_str());
+    const bool b = s_mqtt->subscribe(s.topicExt.c_str());
+    return a && b;
+}
+
 void subscribeAll() {
     for (int i = 0; i < s_n; i++)
-        s_subs[i].subscribed = s_mqtt->subscribe(s_subs[i].topic.c_str());
+        s_subs[i].subscribed = subscribeOne(s_subs[i]);
 }
 
 void open() {
@@ -214,17 +221,20 @@ bool anycubic_cloud::attach(const String& key, const String& mt,
     Sub& s = s_subs[s_n++];
     s.key = key;
     s.mt  = mt;
-    // Only the multiColorBox topics, with a wildcard for the first segment -
+    // Only the spool topics, with a wildcard for the first segment -
     // it is not always "printer", and naming it missed the layout entirely.
     // Not Tiger Studio's "/#": that is every print-progress and temperature
     // report as well, a steady stream this device reads only to throw away,
     // and it filled the network buffers enough to stall a firmware download.
     s.topic  = String("anycubic/anycubicCloud/v1/+/public/") + mt + "/" + key + "/multiColorBox/#";
+    // A printer with no ACE reports its one spool on extfilbox instead, and
+    // multiColorBox stays silent - a Kobra 3 Max showed no slot at all.
+    s.topicExt = String("anycubic/anycubicCloud/v1/+/public/") + mt + "/" + key + "/extfilbox/#";
     s.prefix = String("/public/") + mt + "/" + key + "/";
     s.sink = sink;
     s.subscribed = false;
     open();
-    if (s_mqtt->connected()) s.subscribed = s_mqtt->subscribe(s.topic.c_str());
+    if (s_mqtt->connected()) s.subscribed = subscribeOne(s);
     Serial.printf("[acu-cloud] %s attached (%d on the session)\n", key.c_str(), s_n);
     return true;
 }
@@ -232,7 +242,10 @@ bool anycubic_cloud::attach(const String& key, const String& mt,
 void anycubic_cloud::detach(const String& key) {
     for (int i = 0; i < s_n; i++) {
         if (s_subs[i].key != key) continue;
-        if (s_mqtt && s_mqtt->connected()) s_mqtt->unsubscribe(s_subs[i].topic.c_str());
+        if (s_mqtt && s_mqtt->connected()) {
+            s_mqtt->unsubscribe(s_subs[i].topic.c_str());
+            s_mqtt->unsubscribe(s_subs[i].topicExt.c_str());
+        }
         for (int j = i; j < s_n - 1; j++) s_subs[j] = s_subs[j + 1];
         s_subs[--s_n] = Sub();
         Serial.printf("[acu-cloud] %s detached (%d left)\n", key.c_str(), s_n);
@@ -322,12 +335,12 @@ bool anycubic_cloud::connected(const String& key) {
     return false;
 }
 
-bool anycubic_cloud::publish(const String& key, const String& body) {
+bool anycubic_cloud::publish(const String& key, const char* endpoint, const String& body) {
     if (!s_mqtt || !s_mqtt->connected()) return false;
     for (int i = 0; i < s_n; i++) {
         if (s_subs[i].key != key) continue;
         const String t = String("anycubic/anycubicCloud/v1/web/printer/") + s_subs[i].mt +
-                         "/" + key + "/multiColorBox";
+                         "/" + key + "/" + endpoint;
         return s_mqtt->publish(t.c_str(), body.c_str());
     }
     return false;

@@ -25,7 +25,7 @@ void AnycubicBackend::rebuild(JsonArrayConst boxes) {
         }
         letter++;
     }
-    if (n) nSlots_ = n;
+    if (n) { nSlots_ = n; boxSeen_ = true; extfil_ = false; }
 }
 
 int AnycubicBackend::findSlot(int box, int index) const {
@@ -66,9 +66,36 @@ void AnycubicBackend::applyLayout(JsonArrayConst boxes) {
     }
 }
 
+void AnycubicBackend::applyExtfil(JsonObjectConst spool) {
+    // An ACE printer may answer extfilbox too. Its layout already has the
+    // external unit as box -1, so a second external slot would be invented.
+    if (boxSeen_) return;
+    map_[0].name[0] = 0;                       // drawn as S_HOLDER, translated
+    map_[0].box = -1;
+    map_[0].index = 0;
+    nSlots_ = 1;
+    extfil_ = true;
+    SlotState& s = slots_[0];
+    const char* type = spool["type"] | "";
+    s.type  = type;
+    s.brand = "";
+    s.known = strlen(type) > 0;
+    JsonArrayConst c = spool["color"];
+    if (!c.isNull() && c.size() >= 3) {
+        s.r = c[0] | 0; s.g = c[1] | 0; s.b = c[2] | 0;
+    }
+}
+
 void AnycubicBackend::onMqtt(uint8_t* payload, unsigned int len) {
     JsonDocument doc;
     if (deserializeJson(doc, payload, len)) return;
+    if (strcmp(doc["type"] | "", "extfilbox") == 0) {
+        JsonObjectConst spool = doc["data"];
+        if (spool.isNull() || !spool["type"].is<const char*>()) return;
+        applyExtfil(spool);
+        status_ = String(cloud_ ? "Anycubic Cloud: " : "Anycubic: ") + "external spool";
+        return;
+    }
     // Only a full layout carries slots. The partial actions - drying, feeding,
     // auto-feed - send box objects with no `slots` array at all, and treating
     // one as a layout would empty the grid.
@@ -79,10 +106,10 @@ void AnycubicBackend::onMqtt(uint8_t* payload, unsigned int len) {
     (void)len;
 }
 
-String AnycubicBackend::envelope(const char* action, const String& data) {
+String AnycubicBackend::envelope(const char* type, const char* action, const String& data) {
     // msgid is a plain counter rather than a uuid. The printer echoes it and
     // nothing here matches on it; a uuid would cost entropy for decoration.
-    String out = String("{\"type\":\"multiColorBox\",\"action\":\"") + action +
+    String out = String("{\"type\":\"") + type + "\",\"action\":\"" + action +
                  "\",\"timestamp\":" + String((uint32_t)(millis())) +
                  ",\"msgid\":\"ts-" + String(++msg_) + "\"";
     if (data.length()) out += ",\"data\":" + data;
@@ -101,6 +128,8 @@ void AnycubicBackend::begin(const PrinterCfg& cfg) {
     nSlots_ = 0;
     connected_ = false;
     ready_ = false;
+    boxSeen_ = false;
+    extfil_ = false;
     cloud_ = cfg.cloud;
 
     if (cloud_) {
@@ -137,6 +166,10 @@ void AnycubicBackend::begin(const PrinterCfg& cfg) {
                   devId_ + "/multiColorBox";
     topReport_ = String("anycubic/anycubicCloud/v1/printer/public/") + model_ + "/" +
                   devId_ + "/multiColorBox/report";
+    topCmdExt_    = String("anycubic/anycubicCloud/v1/web/printer/") + model_ + "/" +
+                     devId_ + "/extfilbox";
+    topReportExt_ = String("anycubic/anycubicCloud/v1/printer/public/") + model_ + "/" +
+                     devId_ + "/extfilbox/#";
 
     // Self-signed, on the local network, and there is no authority that could
     // vouch for it. Trust comes from credentials the desktop obtained, exactly
@@ -195,6 +228,7 @@ void AnycubicBackend::loop() {
         String cid = "tigerspool-" + String((uint32_t)ESP.getEfuseMac(), HEX) + "-" + devId_;
         if (mqtt_.connect(cid.c_str(), user_.c_str(), pass_.c_str())) {
             mqtt_.subscribe(topReport_.c_str());
+            mqtt_.subscribe(topReportExt_.c_str());
             connected_ = true;
             status_ = "Anycubic: connected";
             Serial.println("[anycubic] connected + subscribed");
@@ -228,6 +262,7 @@ int AnycubicBackend::slotCount() { return nSlots_; }
 
 const char* AnycubicBackend::slotLabel(int i) {
     if (i < 0 || i >= nSlots_) return "?";
+    if (extfil_) return i18n::T(S_HOLDER);
     return map_[i].name;
 }
 
@@ -237,18 +272,41 @@ const SlotState& AnycubicBackend::slot(int i) {
 
 // One path out for both transports, so a command cannot be built one way for
 // the LAN and another way for the cloud.
-bool AnycubicBackend::send(const String& body) {
-    if (cloud_) return anycubic_cloud::publish(devId_, body);
-    return mqtt_.connected() && mqtt_.publish(topCmd_.c_str(), body.c_str());
+bool AnycubicBackend::send(const char* endpoint, const String& body) {
+    if (cloud_) return anycubic_cloud::publish(devId_, endpoint, body);
+    const String& t = strcmp(endpoint, "extfilbox") == 0 ? topCmdExt_ : topCmd_;
+    return mqtt_.connected() && mqtt_.publish(t.c_str(), body.c_str());
 }
 
 void AnycubicBackend::refresh() {
     if (!connected_) return;
-    send(envelope("getInfo", ""));
+    send("multiColorBox", envelope("multiColorBox", "getInfo", ""));
+    // Asked until an ACE layout says the printer has units; harmless before.
+    if (!boxSeen_) send("extfilbox", envelope("extfilbox", "getInfo", ""));
 }
 
 bool AnycubicBackend::assign(int idx, const TagInfo& t) {
     if (idx < 0 || idx >= nSlots_ || !connected_) return false;
+    // Pure black renders as empty on the ACE display, so a black spool would
+    // look like no spool. The slicer nudges it to 1,1,1 and so does this.
+    const bool black = !t.r && !t.g && !t.b;
+
+    if (extfil_) {
+        // The standalone spool: just type and colour, no box and no index.
+        JsonDocument d;
+        d["type"] = t.material;
+        JsonArray col = d["color"].to<JsonArray>();
+        col.add(black ? 1 : t.r);
+        col.add(black ? 1 : t.g);
+        col.add(black ? 1 : t.b);
+        String data; serializeJson(d, data);
+        const String out = envelope("extfilbox", "setInfo", data);
+        Serial.printf("[anycubic] -> %s\n", out.c_str());
+        if (!send("extfilbox", out)) return false;
+        status_ = String(cloud_ ? "Anycubic Cloud: sent -> " : "Anycubic: sent -> ") + slotLabel(idx);
+        refresh();
+        return true;
+    }
 
     // The printer honours only index, type and colour. Richer fields are
     // accepted with code 200 and silently dropped, so sending them would make
@@ -260,17 +318,14 @@ bool AnycubicBackend::assign(int idx, const TagInfo& t) {
     sl["index"] = map_[idx].index;
     sl["type"] = t.material;
     JsonArray col = sl["color"].to<JsonArray>();
-    // Pure black renders as empty on the ACE display, so a black spool would
-    // look like no spool. The slicer nudges it to 1,1,1 and so does this.
-    const bool black = !t.r && !t.g && !t.b;
     col.add(black ? 1 : t.r);
     col.add(black ? 1 : t.g);
     col.add(black ? 1 : t.b);
 
     String data; serializeJson(d, data);
-    const String out = envelope("setInfo", data);
+    const String out = envelope("multiColorBox", "setInfo", data);
     Serial.printf("[anycubic] -> %s\n", out.c_str());
-    if (!send(out)) return false;
+    if (!send("multiColorBox", out)) return false;
 
     status_ = String(cloud_ ? "Anycubic Cloud: sent -> " : "Anycubic: sent -> ") + slotLabel(idx);
     // There is no per-command acknowledgement. A getInfo round-trip is the only
