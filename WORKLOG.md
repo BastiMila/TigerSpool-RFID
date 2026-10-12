@@ -18,6 +18,19 @@ message, and reset it to this header.
 
 ## Unreleased
 
+## 2026-10-12 - Russian and Dutch (released in 1.72.0)
+
+### Added
+
+- Russian and Dutch on the device (PR #26, @Ptitlouis6012), the two Tiger
+  Studio languages it lacked: a column each in `i18n.cpp`, the Wi-Fi portal
+  page, and `LANG_RU` / `LANG_NL` appended after Chinese so a stored language
+  keeps its index (`LANG_SCHEMA` unchanged). The UI faces gain U+0401,
+  U+0410-U+044F and U+0451; firmware +44 KB (2.34 MB of a 4 MB slot). Checked
+  on the bench board: 26 previews per language, no missing glyph, no overflow.
+- The web installer in Russian and Dutch (PR #27).
+- Desktop stand: five assembly photos, every picture centred (PR #29).
+
 ## 2026-10-12 - The external spool of an Anycubic without an ACE (released in 1.71.1)
 
 ### Fixed

@@ -168,7 +168,7 @@ namespace {
                               "Pas assez de mémoire pour activer une imprimante de plus." },
     };
     // The web form still carries its own four-column table (PT, EN, ES, FR),
-    // inherited from the prototype. The device now has nine languages, so an
+    // inherited from the prototype. The device now has eleven languages, so an
     // unmapped index would read past the end of every row.
     //
     // This maps what it can and falls back to English. The real fix is phase 7:

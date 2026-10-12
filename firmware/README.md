@@ -30,7 +30,7 @@ firmware/
     ├── tigertag_cloud.cpp  account sign-in, pairing, printer import
     ├── tt_db.cpp           reference-table lookups, compiled and downloaded
     ├── webcfg.cpp          captive portal, LAN page, /screen.bmp, /api/*
-    ├── i18n.cpp            every on-screen string, in nine languages
+    ├── i18n.cpp            every on-screen string, in eleven languages
     ├── net/                captive DNS, OTA, TLS helpers
     └── ui/                 LVGL screens, theme, icons, generated fonts
 ```

@@ -108,8 +108,9 @@ wish rather than something anyone can act on.
 
 ## Translations
 
-The firmware targets the same nine languages as
-[TigerScale V3](https://github.com/TigerTag-Project/Tiger-Scale-V3). Once the
+The firmware speaks eleven languages - the nine of
+[TigerScale V3](https://github.com/TigerTag-Project/Tiger-Scale-V3), plus Russian
+and Dutch, which Tiger Studio also speaks. Once the
 locale files exist, translating is a matter of editing JSON — no build tools
 needed, and it is a genuinely useful first contribution.
 

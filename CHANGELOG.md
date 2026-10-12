@@ -7,6 +7,16 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.72.0] - 2026-10-12
+
+### Added
+
+- **Russian and Dutch.** The box now speaks eleven languages - the same list
+  as Tiger Studio. Pick one at first start or in Settings › Language; the Wi-Fi
+  page on your phone follows it.
+- **The web installer in Russian and Dutch** too.
+- **Assembly photos for the desktop stand**, step by step.
+
 ## [1.71.1] - 2026-10-12
 
 ### Fixed
