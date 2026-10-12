@@ -639,7 +639,7 @@ namespace {
     //  opens in the language chosen on the device, so someone who picked
     //  Portugues on the screen does not meet an English page on their phone.
     // ------------------------------------------------------------------
-    const char* LANG_CODES[] = { "en", "fr", "de", "es", "it", "pl", "pt", "ptpt", "zh" };
+    const char* LANG_CODES[] = { "en", "fr", "de", "es", "it", "pl", "pt", "ptpt", "zh", "ru", "nl" };
 
     void startBackgroundScan();          // defined below, called from here
 

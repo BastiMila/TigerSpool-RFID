@@ -23,6 +23,8 @@ enum Lang : uint8_t {
     // Simplified Chinese. Last, so every language already stored in NVS keeps
     // its index.
     LANG_ZH,
+    LANG_RU,       // Russkij
+    LANG_NL,       // Nederlands
     LANG_N
 };
 

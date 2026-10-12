@@ -27,6 +27,11 @@
 #                and paste artefact in reference data shows up as a box instead
 #                of hiding as an ordinary space. Two brand names arrived with
 #                one and this is how they were found.
+#   0x401,       Cyrillic as Russian writes it: the capital and small letters
+#   0x410-0x44F, A to ya, plus the two yo forms that sit outside that block.
+#   0x451        Nothing beyond Russian - Ukrainian, Serbian and the like are not
+#                languages this device offers, and each glyph is paid for in
+#                every one of the seven faces.
 #   0x2022       The bullet, used in lists.
 #
 # The FontAwesome list is LVGL's own, verbatim, so every LV_SYMBOL_* keeps
@@ -49,7 +54,7 @@ MONO_SIZES="16"
 # Only what a hex dump contains: space, 0-9, A-F and the x of "0x". Twenty
 # glyphs, so the face costs almost nothing.
 MONO_RANGE="0x20,0x30-0x39,0x41-0x46,0x78"
-TEXT_RANGE="0x20-0x7F,0xA1-0x17F,0x2022"
+TEXT_RANGE="0x20-0x7F,0xA1-0x17F,0x401,0x410-0x44F,0x451,0x2022"
 
 # LVGL's own symbol list, plus the sun.
 SYMBOLS="61441,61448,61451,61452,61452,61453,61457,61459,61461,61465,61468,61473,61478,61479,61480,61502,61507,61512,61515,61516,61517,61521,61522,61523,61524,61543,61544,61550,61552,61553,61556,61559,61560,61561,61563,61587,61589,61636,61637,61639,61641,61664,61671,61674,61683,61724,61732,61787,61829,61931,62016,62017,62018,62019,62020,62087,62099,62212,62189,62810,63426,63650"
