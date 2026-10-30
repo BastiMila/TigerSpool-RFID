@@ -31,6 +31,7 @@
 #include "backend_ff.h"
 #include "backend_bambu.h"
 #include "backend_snapmaker.h"
+#include "backend_klipper.h"
 #include "backend_elegoo.h"
 #include "backend_anycubic.h"
 #include "webcfg.h"
@@ -146,7 +147,7 @@ static int printerCount() {
 }
 static const char* typeTag(PrinterType t) {
     return t == PT_CREALITY ? "K2" : t == PT_FF_C5 ? "FF C5" : t == PT_BAMBU ? "Bambu"
-         : t == PT_SNAPMAKER ? "Snap" : "--";
+         : t == PT_SNAPMAKER ? "Snap" : t == PT_KLIPPER ? "Klip" : "--";
 }
 
 // ---- "is it online?" probe (TCP connect to the control port) ------------
@@ -176,6 +177,7 @@ static uint16_t ctrlPort(PrinterType t) {
         case PT_FF_C5:     return 8898;
         case PT_BAMBU:     return 8883;
         case PT_SNAPMAKER: return 7125;
+        case PT_KLIPPER:   return 7125;
         case PT_ELEGOO:    return 1883;
         case PT_ANYCUBIC:  return 9883;
         default:           return 9999;   // K2
@@ -780,6 +782,7 @@ static PrinterBackend* newBackend(PrinterType t) {
         case PT_FF_C5:     return new FlashForgeC5Backend();
         case PT_BAMBU:     return new BambuBackend();
         case PT_SNAPMAKER: return new SnapmakerBackend();
+        case PT_KLIPPER:   return new KlipperBackend();
         case PT_ELEGOO:    return new ElegooBackend();
         case PT_ANYCUBIC:  return new AnycubicBackend();
         default:           return new CrealityBackend();
@@ -861,6 +864,7 @@ static uint32_t linkCost(PrinterType t, bool foreground) {
         case PT_BAMBU:     return 56000;
         case PT_ANYCUBIC:  return 48000;
         case PT_SNAPMAKER: return 8000;
+        case PT_KLIPPER:   return 8000;
         case PT_CREALITY:  return 6000;
         case PT_ELEGOO:    return 4000;
         case PT_FF_C5:     return 3000;
@@ -1221,6 +1225,7 @@ static const char* brandName(PrinterType t) {
         case PT_BAMBU:     return "bambu";
         case PT_ANYCUBIC:  return "anycubic";
         case PT_SNAPMAKER: return "snapmaker";
+        case PT_KLIPPER:   return "klipper";
         case PT_CREALITY:  return "creality";
         case PT_ELEGOO:    return "elegoo";
         case PT_FF_C5:     return "flashforge";

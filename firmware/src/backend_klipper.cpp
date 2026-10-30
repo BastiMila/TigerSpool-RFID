@@ -228,6 +228,19 @@ bool KlipperBackend::assign(int idx, const TagInfo& t) {
     if (sub.length())  script += " SUBTYPE=" + sub;
     if (vend.length()) script += " BRAND=" + vend;
 
+    // Nozzle temperature: the middle of the tag's window. A choice, not a rule -
+    // the macro stores it and TT_LOAD uses it for loading.
+    if (t.nozMin > 0 && t.nozMax >= t.nozMin)
+        script += String(" TEMP=") + (int)((t.nozMin + t.nozMax) / 2);
+
+    // Remaining weight, only when the tag's unit looks like grams. The tag
+    // keeps it up to date when a Tiger Scale is used. AFC's initial weight is
+    // not set here, so the percentage the UI shows is relative to AFC's own
+    // initial_weight (1000 g on this printer).
+    if (t.available > 0 && t.available <= 10000 && t.unitLabel.length() &&
+        (t.unitLabel[0] == 'g' || t.unitLabel[0] == 'G'))
+        script += String(" WEIGHT=") + (int)t.available;
+
     JsonDocument d;
     d["jsonrpc"] = "2.0";
     d["method"]  = "printer.gcode.script";
