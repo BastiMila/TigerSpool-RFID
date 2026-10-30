@@ -24,7 +24,8 @@ enum PrinterType : uint8_t {
     PT_BAMBU     = 3,   // MQTT/TLS :8883
     PT_SNAPMAKER = 4,   // Moonraker WebSocket :7125
     PT_ELEGOO    = 5,   // MQTT :1883, no TLS
-    PT_ANYCUBIC  = 6    // MQTT/TLS :9883, self-signed
+    PT_ANYCUBIC  = 6,   // MQTT/TLS :9883, self-signed
+    PT_KLIPPER   = 7    // Moonraker WebSocket :7125, AFC lanes (OpenCreator)
 };
 
 // One printer, as imported from the user's TigerTag account.
