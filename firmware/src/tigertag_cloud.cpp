@@ -257,6 +257,7 @@ namespace {
         if (brand == "flashforge") return (m == 5 || m == 6) ? PT_FF_C5 : PT_NONE;
         if (brand == "bambulab")   return PT_BAMBU;                                // protocolo LAN comum
         if (brand == "snapmaker")  return PT_SNAPMAKER;                             // Moonraker ws :7125
+        if (brand == "klipper")    return PT_KLIPPER;                              // Moonraker ws :7125, AFC
         // Elegoo speaks one protocol across the range - the Centauri Carbon
         // family and everything after it - so there is no model to check.
         if (brand == "elegoo")     return PT_ELEGOO;                                // MQTT :1883
@@ -503,12 +504,12 @@ bool ttcloud::syncNow(String& summary) {
     // fetched anyway so the log can say why they do not appear rather than
     // leaving the user to guess. See docs/PRINTER-COMPATIBILITY.md.
     const char* BRANDS[] = { "creality", "flashforge", "bambulab",
-                             "snapmaker", "elegoo", "anycubic" };
+                             "snapmaker", "elegoo", "anycubic", "klipper" };
     // Each brand maps to exactly one backend type, which is what makes it
     // possible to say "these stored printers came from that brand" when its
     // request fails. Kept beside the list above so the two cannot drift.
     const PrinterType BRAND_TYPE[] = { PT_CREALITY, PT_FF_C5, PT_BAMBU,
-                                       PT_SNAPMAKER, PT_ELEGOO, PT_ANYCUBIC };
+                                       PT_SNAPMAKER, PT_ELEGOO, PT_ANYCUBIC, PT_KLIPPER };
     String base = String("https://firestore.googleapis.com/v1/projects/") + PROJECT +
                   "/databases/(default)/documents";
     // The fields this import reads, in ONE list.
