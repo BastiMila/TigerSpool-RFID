@@ -45,7 +45,10 @@ void KlipperBackend::recompute(int i) {
     SlotState& s = slots_[i];
     s.type  = sub_[i].length() ? (mat_[i] + " " + sub_[i]) : mat_[i];
     s.known = mat_[i].length() > 0;
-    float pct = (initW_[i] > 0) ? (weight_[i] * 100.0f / initW_[i]) : 0.0f;
+    // The full quantity of the spool the tag describes beats AFC's own initial
+    // weight, which stays at 1000 g whatever spool is loaded.
+    float den = (totalW_[i] > 0) ? totalW_[i] : initW_[i];
+    float pct = (den > 0) ? (weight_[i] * 100.0f / den) : 0.0f;
     if (pct < 0) pct = 0;
     if (pct > 100) pct = 100;
     s.percent  = (uint8_t)(pct + 0.5f);
@@ -94,6 +97,8 @@ void KlipperBackend::applyStatus(JsonObjectConst st) {
             String ks = String("tt_t") + i + "_sub";
             if (vars[kb].is<const char*>()) slots_[i].brand = unclean((const char*)vars[kb]);
             if (vars[ks].is<const char*>()) sub_[i]         = unclean((const char*)vars[ks]);
+            String kt = String("tt_t") + i + "_total";
+            if (vars[kt].is<float>()) totalW_[i] = vars[kt].as<float>();
         }
         String key = String("AFC_lane extruder") + i;
         JsonObjectConst lane = st[key];
@@ -153,7 +158,7 @@ void KlipperBackend::begin(const PrinterCfg& cfg) {
     for (int i = 0; i < 4; i++) {
         slots_[i] = SlotState{};
         mat_[i] = ""; sub_[i] = "";
-        weight_[i] = 0; initW_[i] = 0;
+        weight_[i] = 0; initW_[i] = 0; totalW_[i] = 0;
     }
     connected_ = false;
     currentLane_ = -1;
@@ -228,18 +233,26 @@ bool KlipperBackend::assign(int idx, const TagInfo& t) {
     if (sub.length())  script += " SUBTYPE=" + sub;
     if (vend.length()) script += " BRAND=" + vend;
 
-    // Nozzle temperature: the middle of the tag's window. A choice, not a rule -
-    // the macro stores it and TT_LOAD uses it for loading.
+    // Temperatures: the middle of the tag's windows. A choice, not a rule - the
+    // macro stores them and the printer side decides what to do with them.
     if (t.nozMin > 0 && t.nozMax >= t.nozMin)
         script += String(" TEMP=") + (int)((t.nozMin + t.nozMax) / 2);
+    if (t.bedMin > 0 && t.bedMax >= t.bedMin)
+        script += String(" BEDTEMP=") + (int)((t.bedMin + t.bedMax) / 2);
 
-    // Remaining weight, only when the tag's unit looks like grams. The tag
-    // keeps it up to date when a Tiger Scale is used. AFC's initial weight is
-    // not set here, so the percentage the UI shows is relative to AFC's own
-    // initial_weight (1000 g on this printer).
-    if (t.available > 0 && t.available <= 10000 && t.unitLabel.length() &&
-        (t.unitLabel[0] == 'g' || t.unitLabel[0] == 'G'))
-        script += String(" WEIGHT=") + (int)t.available;
+    // Weight. The tag keeps the remaining quantity only once a scale has
+    // written it, so a spool that never met one has available == 0; then the
+    // quantity it left the factory with (measure) is the best figure there is.
+    // Only grams and kilograms are understood. Anything else is not guessed.
+    uint32_t qty = t.available > 0 ? t.available : t.measure;
+    char u = t.unitLabel.length() ? (char)(t.unitLabel[0] | 0x20) : 0;
+    long grams = (u == 'g') ? (long)qty : (u == 'k') ? (long)qty * 1000L : 0;
+    Serial.printf("[klipper] tag: measure=%u available=%u unit='%s' -> %ld g\n",
+                  (unsigned)t.measure, (unsigned)t.available, t.unitLabel.c_str(), grams);
+    if (grams > 0 && grams <= 10000) script += String(" WEIGHT=") + grams;
+    // Full quantity of this spool, kept on the printer for the percentage.
+    long total = (u == 'g') ? (long)t.measure : (u == 'k') ? (long)t.measure * 1000L : 0;
+    if (total > 0 && total <= 10000) script += String(" INITIAL=") + total;
 
     JsonDocument d;
     d["jsonrpc"] = "2.0";

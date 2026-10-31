@@ -41,7 +41,8 @@ private:
     SlotState slots_[4];
     String    mat_[4], sub_[4];          // AFC material, subtype from save_variables
     float     weight_[4] = {0, 0, 0, 0};
-    float     initW_[4]  = {0, 0, 0, 0};
+    float     initW_[4]  = {0, 0, 0, 0};   // AFC's own initial_weight
+    float     totalW_[4] = {0, 0, 0, 0};   // tag's full quantity, from save_variables
     int       currentLane_ = -1;
     bool      printing_ = false;
     uint32_t  lastReq_ = 0;
