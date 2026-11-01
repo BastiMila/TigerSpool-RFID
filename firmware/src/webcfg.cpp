@@ -472,6 +472,9 @@ namespace {
         else if (preview == "resultlong") screen_scan::showResult("AMS2-4", true, "", previewTag(), 5000);
         else if (preview == "resultfail") screen_scan::showResult("B2", false,
                                              i18n::T(S_SEND_FAIL), previewTag(), 0);
+        // Sent, but the weight stayed: the longest warning sits under the spool.
+        else if (preview == "resultweight") screen_scan::showResult("T2", true, "", previewTag(), 3200,
+                                             i18n::T(S_WEIGHT_KEPT));
         else if (preview == "greys")     previewGreys();
         else if (preview == "icons")     previewIcons();
 

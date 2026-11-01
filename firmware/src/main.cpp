@@ -137,6 +137,7 @@ uint32_t nfcLastTry = 0;
 int     selSlot = -1;
 TagInfo tag;
 bool    sendOk = false;
+bool    sendWeightKept = false;   // sent, but the slot's weight was left as it was
 String  resultMsg;
 uint32_t stateSince = 0;
 
@@ -3144,6 +3145,9 @@ void loop() {
         if (sendWaiting && !product_api::waiting(tag.idProduct) && !ttcloud::spoolWaiting(tag.uid)) {
             sendWaiting = false;
             sendOk = backend && backend->connected() && backend->assign(selSlot, tag);
+            // Asked once, here, and kept: the result screen is drawn from this
+            // state, not from the backend, whose next assign would change it.
+            sendWeightKept = sendOk && backend->weightSkipped();
             BENCH_MARK("send:assign");
             char m[48];
             if (sendOk) snprintf(m, sizeof(m), i18n::T(S_UPDATED), backend->slotLabel(selSlot));
@@ -3174,7 +3178,8 @@ void loop() {
         tag.signature = reader::signatureOf(tag);
         screen_scan::showResult(backend ? backend->slotLabel(selSlot) : "?",
                                 sendOk, resultMsg.c_str(), tag,
-                                since >= RESULT_MS ? 0 : RESULT_MS - since);
+                                since >= RESULT_MS ? 0 : RESULT_MS - since,
+                                sendWeightKept ? i18n::T(S_WEIGHT_KEPT) : nullptr);
         BENCH_MARK("result:draw");
         lvgl_port::loop();
         BENCH_MARK("result:lvgl");

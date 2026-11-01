@@ -25,6 +25,7 @@ public:
     const char* slotLabel(int i) override;
     const SlotState& slot(int i) override;
     bool assign(int i, const TagInfo& t) override;
+    bool weightSkipped() override { return weightSkipped_; }
     String status() override;
     void refresh() override;
 private:
@@ -52,4 +53,5 @@ private:
     uint8_t   pendR_ = 0, pendG_ = 0, pendB_ = 0;
     uint32_t  pendUntil_ = 0;
     String    pendNote_;                    // appended to the status, e.g. when no weight was sent
+    bool      weightSkipped_ = false;       // the last assign went out without WEIGHT
 };

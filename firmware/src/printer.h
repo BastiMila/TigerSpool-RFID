@@ -115,6 +115,11 @@ public:
     virtual const char* slotLabel(int i) = 0;       // "Ext", "1A", "T3", ...
     virtual const SlotState& slot(int i) = 0;
     virtual bool assign(int i, const TagInfo& t) = 0;
+    // The last assign() succeeded but left the slot's weight as it was, because
+    // the figure it needed did not arrive in time. A user who sees only a green
+    // tick believes the weight moved too. False for every backend that sends no
+    // weight at all - there is nothing there to have missed.
+    virtual bool weightSkipped() { return false; }
 
     // Is slot 0 the printer's single external spool, drawn on a row of its
     // own? True for every brand that has one - and false for Anycubic, whose

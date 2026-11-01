@@ -255,6 +255,7 @@ bool KlipperBackend::assign(int idx, const TagInfo& t) {
                   fromAccount ? st.netGrams : -1, fromAccount ? st.totalGrams : -1,
                   fromAccount ? "" : " - not available, weight left as it is");
     pendNote_ = fromAccount ? "" : " (weight not updated)";
+    weightSkipped_ = !fromAccount;
     if (fromAccount) {
         // An empty spool reads 0 here, and that is a figure.
         if (st.netGrams <= 10000) script += String(" WEIGHT=") + st.netGrams;

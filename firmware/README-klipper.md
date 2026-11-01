@@ -79,8 +79,10 @@ TT_SET_LANE TOOL=n MATERIAL=PLA SUBTYPE=Silk COLOR=RRGGBB BRAND=eSUN TEMP=210 BE
   `weight_available`, `INITIAL` is `measure_gr` (else `measure`).
 - When the account does not answer in time - not signed in, no such document,
   the document marked deleted, or the sync holding the session - the command
-  goes out without `WEIGHT` and `INITIAL`, the weight already on the printer
-  stays, and the status line adds **(weight not updated)**.
+  goes out without `WEIGHT` and `INITIAL` and the weight already on the printer
+  stays. The result screen says so under the spool, in orange, in the device's
+  language ("Weight not updated - the printer keeps its previous value"), and
+  the status line adds **(weight not updated)**.
 - Afterwards the spool reads the lane back. The status line says **confirmed**
   when the colour arrived, **sent, not confirmed** after twelve seconds if it did
   not, or shows Moonraker's own error text if the command was refused.

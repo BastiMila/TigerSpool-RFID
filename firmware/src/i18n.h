@@ -201,6 +201,7 @@ enum StrId : uint8_t {
     S_POWER_OFF,
     S_POWER_OFF_Q,
     S_POWER_OFF_HINT,
+    S_WEIGHT_KEPT,
     S_COUNT
 };
 
