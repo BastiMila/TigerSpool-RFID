@@ -140,7 +140,7 @@ def main() -> int:
 
     out = pathlib.Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text("\n".join(lines) + "\n")
+    out.write_text("\n".join(lines) + "\n", newline="\n")   # LF on Windows too
     print(f"OK -> {a.out}   ({w}x{h}, {len(words) * 2} bytes of flash)")
     return 0
 

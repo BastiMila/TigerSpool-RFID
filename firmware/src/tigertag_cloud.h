@@ -163,12 +163,12 @@ namespace ttcloud {
     // A chip is written once. The weight a TigerScale measures afterwards goes to
     // that document, not back onto the chip, so a slot that should show what is left
     // on the spool has to ask the account. Same shape as product_api: the fetch
-    // starts when the spool is chosen for a slot, on a task of its own, a send waits
-    // for it only inside SPOOL_BUDGET_MS, and an answer that arrives later is kept
-    // for the next send rather than sent as a second one.
+    // starts the moment the tag is read (the slot is chosen before), on a task of
+    // its own, a send waits for it only inside SPOOL_BUDGET_MS, and an answer that
+    // arrives later is kept for the next send rather than sent as a second one.
     //
-    // 8 s because one Firestore read took 2.6 s on this device, TLS handshake
-    // included (the account import logs it).
+    // 8 s is three times the 2.6 s one Firestore read took on this device, TLS
+    // handshake included (the account import logs it).
     struct SpoolStock {
         int netGrams   = -1;   // weight_available, filament only; -1 = not in the document
         int totalGrams = -1;   // measure_gr, the spool's full quantity; -1 = not in the document

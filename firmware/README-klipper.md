@@ -18,7 +18,7 @@ other brand: Tiger Studio stores it under `printers/klipper/devices`.
   Other lane layouts are not handled yet.
 - A `[save_variables]` section in the printer config.
 - The printer added in Tiger Studio Manager as a **Klipper** printer.
-- The macros in [`klipper/tigertag.cfg`](klipper/tigertag.cfg) on the printer.
+- The macros in [`klipper/tigertag.cfg`](../klipper/tigertag.cfg) on the printer.
 
 ### Printer setup
 
@@ -72,9 +72,15 @@ TT_SET_LANE TOOL=n MATERIAL=PLA SUBTYPE=Silk COLOR=RRGGBB BRAND=eSUN TEMP=210 BE
 - `TEMP` and `BEDTEMP` are the middle of the tag's nozzle and bed ranges. The
   macro passes both to `AFC_SET_SPOOL_TEMP` and refuses values above the
   heaters' `max_temp`.
-- `WEIGHT` is the tag's remaining quantity (`available`), or its full quantity
-  (`measure`) when no scale has written one. `INITIAL` is the full quantity.
-  Both are sent only when the tag's unit is grams or kilograms.
+- `WEIGHT` and `INITIAL` come from the account, never from the chip. A chip is
+  written once; what a TigerScale measures afterwards goes to the spool's
+  document, `users/{uid}/inventory/{chip UID}`. The spool starts reading it the
+  moment the tag is read and the send waits for it up to 8 seconds. `WEIGHT` is
+  `weight_available`, `INITIAL` is `measure_gr` (else `measure`).
+- When the account does not answer in time - not signed in, no such document,
+  the document marked deleted, or the sync holding the session - the command
+  goes out without `WEIGHT` and `INITIAL`, the weight already on the printer
+  stays, and the status line adds **(weight not updated)**.
 - Afterwards the spool reads the lane back. The status line says **confirmed**
   when the colour arrived, **sent, not confirmed** after twelve seconds if it did
   not, or shows Moonraker's own error text if the command was refused.
@@ -82,9 +88,9 @@ TT_SET_LANE TOOL=n MATERIAL=PLA SUBTYPE=Silk COLOR=RRGGBB BRAND=eSUN TEMP=210 BE
 ### Limits
 
 - A slot is not written while the printer is printing or paused.
-- The weight is whatever the chip carries. A spool whose chip has not been
-  updated since it was written shows that value. Tiger Studio's inventory in the
-  account is not read.
+- The weight needs the device signed in to the TigerTag account that holds the
+  spool. Without that, or when the read is slow, a scan updates everything
+  except the weight.
 - AFC keeps `initial_weight` at 1000 g. Fluidd draws its spool graphic from it,
   so a 300 g spool looks about a quarter full there when it is full. The spool's
   own percentage uses the real full quantity and is not affected.
@@ -102,6 +108,6 @@ TT_SET_LANE TOOL=n MATERIAL=PLA SUBTYPE=Silk COLOR=RRGGBB BRAND=eSUN TEMP=210 BE
 | `src/printer.h` | `PT_KLIPPER = 7` |
 | `src/printer_budget.h` | load slots for `PT_KLIPPER` |
 | `src/main.cpp` | backend creation, port, link cost, brand name |
-| `src/tigertag_cloud.cpp` | `klipper` brand in the account import |
+| `src/tigertag_cloud.h`, `src/tigertag_cloud.cpp` | `klipper` brand in the account import; the spool's weight read from the inventory |
 | `src/webcfg.cpp` | "Klipper" in the brand list of the web page |
 | `klipper/tigertag.cfg` | printer-side macros (`TT_SET_LANE`, `TT_LOAD`) |

@@ -79,7 +79,8 @@ void KlipperBackend::applyLane(int i, JsonObjectConst lane) {
 
 void KlipperBackend::applyStatus(JsonObjectConst st) {
     JsonObjectConst afc = st["AFC"];
-    if (!afc.isNull() && afc.containsKey("current_load")) {
+    // Bound but null is "nothing loaded"; only an absent key leaves it alone.
+    if (!afc.isNull() && !afc["current_load"].isUnbound()) {
         currentLane_ = -1;
         if (afc["current_load"].is<const char*>()) {
             const char* cl = (const char*)afc["current_load"];

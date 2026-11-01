@@ -34,6 +34,7 @@ someone has to do work before it does.
 | **Elegoo** | Centauri 2, Centauri 2 Combo, Centauri Carbon 2, Centauri Carbon 2 Combo | ⚙️ | MQTT `:1883` (plain TCP) | 🟢 **reading** proven on hardware (Centauri Carbon 2 Combo, with and without its CANVAS - every Centauri runs the same firmware) · writing not yet confirmed on a printer | Serial number and the MQTT password (an "Access Code" on the printer). Imported automatically from your account. |
 | **Anycubic** | Kobra 3 / 3 Max (V2), Kobra X, ACE units - or the single external spool of a printer without one (`extfilbox`) | ⚙️ | MQTT/TLS `:9883` | 🟢 **reading** proven on hardware (Kobra X) · writing not yet confirmed on a printer | **LAN mode**, and **the printer must be paired in AnycubicSlicerNext at least once** — its broker credentials exist nowhere else. Tiger Studio reads them from there into your account. |
 | **Anycubic (cloud)** | any Anycubic not in LAN mode | ⚙️ | MQTT/TLS to Anycubic's cloud broker `:8883`, one session shared by every cloud Anycubic on the account | 🟢 **reading and writing** proven on hardware (Kobra X) | Add the printer to Tiger Studio in cloud mode: it writes the account's token and Anycubic's shared client certificate on the printer's document, and the device reads both from there. The device signs in as `web`, so it stays connected beside Tiger Studio and the slicer. When a new slicer sign-in revokes the token, refresh the printer in Tiger Studio. |
+| **Klipper with AFC** | four AFC lanes `extruder0`-`extruder3`, one per tool; run on a FlashForge Creator 5 Pro with OpenCreator and AFC 1.2.8 | 🧪 | Moonraker WebSocket `:7125` | 🟡 implemented, run on one setup only | The macros in [`klipper/tigertag.cfg`](../klipper/tigertag.cfg) included in `printer.cfg`, and a `[save_variables]` section. Added in Tiger Studio as a **Klipper** printer. The remaining weight comes from the spool's document in your TigerTag account, not from the chip. See [README-klipper.md](../firmware/README-klipper.md). |
 
 **How many at once** depends on which: a Bambu or an Anycubic takes far more of
 the device's memory than the others, so the limit is a load budget rather than a
@@ -177,6 +178,7 @@ These are taken from Tiger Studio's renderers, which are the reference:
 | **FlashForge** | `Ext.` | `1A`–`1D` for the material station. `T1`–`T4` are something else: the Creator 5 Pro's tool-changer nozzles, not station slots. |
 | **Elegoo** | `Ext.` | `S1`–`S4` on a Combo - the CANVAS unit and its four colours. A Centauri without CANVAS has `Ext.` only. |
 | **Snapmaker** | — | `E1`–`E4`, one per extruder |
+| **Klipper (AFC)** | — | `T0`–`T3`, one per tool, the names the printer's own macros use |
 | **Anycubic** | see below | `A1`–`A4`, `B1`–`B4`, … one row per ACE unit |
 
 **There is one external slot per printer.** Not one per CFS, AMS or ACE unit —
@@ -255,7 +257,7 @@ slot to show it on screen.
 
 ## Why a printer that "should work" may not
 
-**Printer firmware updates.** Every protocol here except Snapmaker's is
+**Printer firmware updates.** Every protocol here except Snapmaker's and Klipper's is
 reverse-engineered from a vendor's private API. Vendors change them without
 notice and owe nobody compatibility. A printer that worked last month can stop.
 

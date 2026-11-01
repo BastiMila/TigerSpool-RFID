@@ -500,7 +500,7 @@ bool ttcloud::syncNow(String& summary) {
     if (!ensureToken()) { summary = g_lastResult = "TigerTag: sessao invalida"; return false; }
     fetchProfile();
 
-    // All six brands are read. Two of them have no backend yet, and they are
+    // All seven brands are read. Two of them have no backend yet, and they are
     // fetched anyway so the log can say why they do not appear rather than
     // leaving the user to guess. See docs/PRINTER-COMPATIBILITY.md.
     const char* BRANDS[] = { "creality", "flashforge", "bambulab",

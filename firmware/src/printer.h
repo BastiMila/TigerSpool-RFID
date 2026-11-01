@@ -5,7 +5,7 @@
 // How many printers the device carries from the account.
 //
 // It was eight, and eight was wrong for a reason that only shows up on a real
-// account: the import walks the six brands in a fixed order and stops when it
+// account: the import walks the brands in a fixed order and stops when it
 // is full, so an account with more printers than this does not lose a random
 // eight - it loses the LAST BRANDS ALPHABETICALLY IN THAT LIST, every time.
 // Elegoo and Anycubic are last. A user who owned one of each would have found

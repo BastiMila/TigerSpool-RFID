@@ -95,7 +95,7 @@ def main() -> int:
         "symbols": distinct_symbols[0] if distinct_symbols else "",
         "read_from": sorted(specs)[0],
         "sizes": len(specs),
-    }, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    }, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")   # LF on Windows too
     print(f"OK -> {OUT.relative_to(REPO)}   ({distinct[0]} + "
           f"{len(distinct_symbols[0]) if distinct_symbols else 0} CJK glyphs, "
           f"{len(specs)} font size(s) agree)")
