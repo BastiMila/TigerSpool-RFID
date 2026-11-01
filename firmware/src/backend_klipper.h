@@ -51,4 +51,5 @@ private:
     int       pendIdx_ = -1;
     uint8_t   pendR_ = 0, pendG_ = 0, pendB_ = 0;
     uint32_t  pendUntil_ = 0;
+    String    pendNote_;                    // appended to the status, e.g. when no weight was sent
 };

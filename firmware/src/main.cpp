@@ -3102,6 +3102,7 @@ void loop() {
                     const PrinterCfg& to = printers[selectedPrinter];
                     if (to.type == PT_CREALITY || (to.type == PT_BAMBU && !to.cloud))
                         product_api::request(tag);
+                    if (to.type == PT_KLIPPER) ttcloud::requestSpool(tag.uid);
                     // Straight into the send. The slot was chosen and the spool
                     // was presented; asking a third time to approve what the
                     // user is visibly doing only stands in the way.
@@ -3140,7 +3141,7 @@ void loop() {
         // THIS spool is still inside its budget, and the screen keeps drawing
         // meanwhile. Past the budget the send goes ahead without it - once:
         // an answer that turns up later is kept for next time, never sent.
-        if (sendWaiting && !product_api::waiting(tag.idProduct)) {
+        if (sendWaiting && !product_api::waiting(tag.idProduct) && !ttcloud::spoolWaiting(tag.uid)) {
             sendWaiting = false;
             sendOk = backend && backend->connected() && backend->assign(selSlot, tag);
             BENCH_MARK("send:assign");

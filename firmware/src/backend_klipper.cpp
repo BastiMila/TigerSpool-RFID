@@ -1,4 +1,5 @@
 #include "backend_klipper.h"
+#include "tigertag_cloud.h"
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 
@@ -70,7 +71,7 @@ void KlipperBackend::applyLane(int i, JsonObjectConst lane) {
 
     if (pendIdx_ == i) {
         if (s.r == pendR_ && s.g == pendG_ && s.b == pendB_) {
-            status_ = String("Klipper: ") + SLOTS[i] + " confirmed";
+            status_ = String("Klipper: ") + SLOTS[i] + " confirmed" + pendNote_;
             pendIdx_ = -1;
         }
     }
@@ -179,7 +180,7 @@ void KlipperBackend::loop() {
     ws_.loop();
     if (connected_ && millis() - lastReq_ > 5000) { lastReq_ = millis(); refresh(); }
     if (pendIdx_ >= 0 && (int32_t)(millis() - pendUntil_) > 0) {
-        status_ = String("Klipper: ") + SLOTS[pendIdx_] + " sent, not confirmed";
+        status_ = String("Klipper: ") + SLOTS[pendIdx_] + " sent, not confirmed" + pendNote_;
         pendIdx_ = -1;
     }
 }
@@ -240,19 +241,25 @@ bool KlipperBackend::assign(int idx, const TagInfo& t) {
     if (t.bedMin > 0 && t.bedMax >= t.bedMin)
         script += String(" BEDTEMP=") + (int)((t.bedMin + t.bedMax) / 2);
 
-    // Weight. The tag keeps the remaining quantity only once a scale has
-    // written it, so a spool that never met one has available == 0; then the
-    // quantity it left the factory with (measure) is the best figure there is.
-    // Only grams and kilograms are understood. Anything else is not guessed.
-    uint32_t qty = t.available > 0 ? t.available : t.measure;
-    char u = t.unitLabel.length() ? (char)(t.unitLabel[0] | 0x20) : 0;
-    long grams = (u == 'g') ? (long)qty : (u == 'k') ? (long)qty * 1000L : 0;
-    Serial.printf("[klipper] tag: measure=%u available=%u unit='%s' -> %ld g\n",
-                  (unsigned)t.measure, (unsigned)t.available, t.unitLabel.c_str(), grams);
-    if (grams > 0 && grams <= 10000) script += String(" WEIGHT=") + grams;
-    // Full quantity of this spool, kept on the printer for the percentage.
-    long total = (u == 'g') ? (long)t.measure : (u == 'k') ? (long)t.measure * 1000L : 0;
-    if (total > 0 && total <= 10000) script += String(" INITIAL=") + total;
+    // Weight. A chip is written once; what a TigerScale measures afterwards goes
+    // to the spool's document in the account, so the account is the only source
+    // of the weight (see ttcloud::requestSpool, started the moment the tag is
+    // read, the slot already chosen). The chip's own figure is never sent: it is whatever was burned
+    // into it, and a stale weight on the printer is worse than none. When the
+    // account has not answered, the slot gets everything else and the weight
+    // already on the printer stays.
+    ttcloud::SpoolStock st;
+    const bool fromAccount = ttcloud::spoolCached(t.uid, st) && st.netGrams >= 0;
+    Serial.printf("[klipper] weight %d of %d g from the account%s\n",
+                  fromAccount ? st.netGrams : -1, fromAccount ? st.totalGrams : -1,
+                  fromAccount ? "" : " - not available, weight left as it is");
+    pendNote_ = fromAccount ? "" : " (weight not updated)";
+    if (fromAccount) {
+        // An empty spool reads 0 here, and that is a figure.
+        if (st.netGrams <= 10000) script += String(" WEIGHT=") + st.netGrams;
+        // Full quantity of this spool, kept on the printer for the percentage.
+        if (st.totalGrams > 0 && st.totalGrams <= 10000) script += String(" INITIAL=") + st.totalGrams;
+    }
 
     JsonDocument d;
     d["jsonrpc"] = "2.0";
@@ -266,7 +273,7 @@ bool KlipperBackend::assign(int idx, const TagInfo& t) {
 
     pendIdx_ = idx; pendR_ = t.r; pendG_ = t.g; pendB_ = t.b;
     pendUntil_ = millis() + 12000;
-    status_ = String("Klipper: sent -> ") + SLOTS[idx];
+    status_ = String("Klipper: sent -> ") + SLOTS[idx] + pendNote_;
     delay(200);
     refresh();   // read it back; applyLane() confirms or the timeout reports it
     return true;
