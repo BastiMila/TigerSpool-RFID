@@ -26,6 +26,7 @@ public:
     const SlotState& slot(int i) override;
     bool assign(int i, const TagInfo& t) override;
     bool weightSkipped() override { return weightSkipped_; }
+    void setWeightFromCloud(bool v) override { weightFromCloud_ = v; }
     String status() override;
     void refresh() override;
 private:
@@ -54,4 +55,5 @@ private:
     uint32_t  pendUntil_ = 0;
     String    pendNote_;                    // appended to the status, e.g. when no weight was sent
     bool      weightSkipped_ = false;       // the last assign went out without WEIGHT
+    bool      weightFromCloud_ = true;      // the user's choice, set before every assign
 };

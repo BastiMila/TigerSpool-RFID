@@ -242,25 +242,44 @@ bool KlipperBackend::assign(int idx, const TagInfo& t) {
     if (t.bedMin > 0 && t.bedMax >= t.bedMin)
         script += String(" BEDTEMP=") + (int)((t.bedMin + t.bedMax) / 2);
 
-    // Weight. A chip is written once; what a TigerScale measures afterwards goes
-    // to the spool's document in the account, so the account is the only source
-    // of the weight (see ttcloud::requestSpool, started the moment the tag is
-    // read, the slot already chosen). The chip's own figure is never sent: it is whatever was burned
-    // into it, and a stale weight on the printer is worse than none. When the
-    // account has not answered, the slot gets everything else and the weight
-    // already on the printer stays.
-    ttcloud::SpoolStock st;
-    const bool fromAccount = ttcloud::spoolCached(t.uid, st) && st.netGrams >= 0;
-    Serial.printf("[klipper] weight %d of %d g from the account%s\n",
-                  fromAccount ? st.netGrams : -1, fromAccount ? st.totalGrams : -1,
-                  fromAccount ? "" : " - not available, weight left as it is");
-    pendNote_ = fromAccount ? "" : " (weight not updated)";
-    weightSkipped_ = !fromAccount;
-    if (fromAccount) {
+    // Weight, from the source the user chose (setWeightFromCloud).
+    //
+    // Cloud: a chip is written once; what a TigerScale measures afterwards goes
+    // to the spool's document in the account (see ttcloud::requestSpool, started
+    // the moment the tag is read, the slot already chosen). When the account has
+    // not answered, the slot gets everything else and the weight already on the
+    // printer stays - a stale weight is worse than none.
+    //
+    // Chip: what is written on the tag, for a device that works offline. The
+    // remaining quantity once a scale has written it, else the quantity it left
+    // the factory with. Only grams and kilograms are understood; anything else
+    // is not guessed.
+    long net = -1, total = -1;
+    if (weightFromCloud_) {
+        ttcloud::SpoolStock st;
+        if (ttcloud::spoolCached(t.uid, st) && st.netGrams >= 0) { net = st.netGrams; total = st.totalGrams; }
+    } else {
+        const char u = t.unitLabel.length() ? (char)(t.unitLabel[0] | 0x20) : 0;
+        const long mul = (u == 'g') ? 1L : (u == 'k') ? 1000L : 0L;
+        // Unlike the account, a chip reads 0 when nothing was written, so 0 is
+        // not a figure here.
+        const uint32_t qty = t.available > 0 ? t.available : t.measure;
+        if (mul && qty > 0) {
+            net   = (long)qty * mul;
+            total = (long)t.measure * mul;
+        }
+    }
+    const bool haveWeight = net >= 0;
+    Serial.printf("[klipper] weight %ld of %ld g from the %s%s\n", net, total,
+                  weightFromCloud_ ? "account" : "chip",
+                  haveWeight ? "" : " - not available, weight left as it is");
+    pendNote_ = haveWeight ? "" : " (weight not updated)";
+    weightSkipped_ = !haveWeight;
+    if (haveWeight) {
         // An empty spool reads 0 here, and that is a figure.
-        if (st.netGrams <= 10000) script += String(" WEIGHT=") + st.netGrams;
+        if (net <= 10000) script += String(" WEIGHT=") + net;
         // Full quantity of this spool, kept on the printer for the percentage.
-        if (st.totalGrams > 0 && st.totalGrams <= 10000) script += String(" INITIAL=") + st.totalGrams;
+        if (total > 0 && total <= 10000) script += String(" INITIAL=") + total;
     }
 
     JsonDocument d;

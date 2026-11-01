@@ -72,11 +72,17 @@ TT_SET_LANE TOOL=n MATERIAL=PLA SUBTYPE=Silk COLOR=RRGGBB BRAND=eSUN TEMP=210 BE
 - `TEMP` and `BEDTEMP` are the middle of the tag's nozzle and bed ranges. The
   macro passes both to `AFC_SET_SPOOL_TEMP` and refuses values above the
   heaters' `max_temp`.
-- `WEIGHT` and `INITIAL` come from the account, never from the chip. A chip is
-  written once; what a TigerScale measures afterwards goes to the spool's
-  document, `users/{uid}/inventory/{chip UID}`. The spool starts reading it the
-  moment the tag is read and the send waits for it up to 8 seconds. `WEIGHT` is
-  `weight_available`, `INITIAL` is `measure_gr` (else `measure`).
+- `WEIGHT` and `INITIAL` come from one source, chosen under **Settings >
+  Account > Weight from**: **Cloud** (the default) or **Chip**. The reader
+  screen shows the remaining weight from the same source and names it.
+- **Cloud:** a chip is written once; what a TigerScale measures afterwards goes
+  to the spool's document, `users/{uid}/inventory/{chip UID}`. The spool starts
+  reading it the moment the tag is read and the send waits for it up to 8
+  seconds. `WEIGHT` is `weight_available`, `INITIAL` is `measure_gr` (else
+  `measure`).
+- **Chip:** no network involved. `WEIGHT` is the tag's remaining quantity
+  (`available`), or its full quantity (`measure`) when no scale has written
+  one; `INITIAL` is the full quantity. Only grams and kilograms are used.
 - When the account does not answer in time - not signed in, no such document,
   the document marked deleted, or the sync holding the session - the command
   goes out without `WEIGHT` and `INITIAL` and the weight already on the printer
@@ -90,9 +96,10 @@ TT_SET_LANE TOOL=n MATERIAL=PLA SUBTYPE=Silk COLOR=RRGGBB BRAND=eSUN TEMP=210 BE
 ### Limits
 
 - A slot is not written while the printer is printing or paused.
-- The weight needs the device signed in to the TigerTag account that holds the
-  spool. Without that, or when the read is slow, a scan updates everything
-  except the weight.
+- On **Cloud**, the weight needs the device signed in to the TigerTag account
+  that holds the spool. Without that, or when the read is slow, a scan updates
+  everything except the weight. **Chip** works offline, but shows what was
+  last written to the chip, which a scale does not update.
 - AFC keeps `initial_weight` at 1000 g. Fluidd draws its spool graphic from it,
   so a 300 g spool looks about a quarter full there when it is full. The spool's
   own percentage uses the real full quantity and is not affected.

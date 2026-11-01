@@ -120,6 +120,11 @@ public:
     // tick believes the weight moved too. False for every backend that sends no
     // weight at all - there is nothing there to have missed.
     virtual bool weightSkipped() { return false; }
+    // Where the next assign() takes the spool's weight from: the account (the
+    // figure a TigerScale keeps up to date) or the chip (what was written on
+    // it, but needs no network). The user's choice, held by main.cpp and handed
+    // over before every assign. Ignored by backends that send no weight.
+    virtual void setWeightFromCloud(bool) {}
 
     // Is slot 0 the printer's single external spool, drawn on a row of its
     // own? True for every brand that has one - and false for Anycubic, whose
