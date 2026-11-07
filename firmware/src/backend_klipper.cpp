@@ -133,6 +133,17 @@ void KlipperBackend::detect(JsonArrayConst objects) {
 }
 
 void KlipperBackend::applyStatus(JsonObjectConst st) {
+    // The end of a print, whatever the slots are: printing (or paused) to
+    // complete or cancelled. An error is left out - the job may resume.
+    const char* ps = st["print_stats"]["state"] | (const char*)nullptr;
+    if (ps) {
+        const bool was = printState_ == "printing" || printState_ == "paused";
+        if (was && (!strcmp(ps, "complete") || !strcmp(ps, "cancelled"))) {
+            printEnded_ = true;
+            Serial.printf("[klipper] print %s\n", ps);
+        }
+        printState_ = ps;
+    }
     if (sys_ == SYS_MMU) {
         JsonObjectConst m = st["mmu"];
         if (m.isNull()) return;
@@ -163,6 +174,7 @@ void KlipperBackend::applyStatus(JsonObjectConst st) {
             if (!sv.isNull()) {
                 const long tot = sv[svName(lane_[i], "total")] | 0L;
                 if (tot > 0 && tot <= 10000) totalW_[i] = tot;
+                uid_[i] = sv[svName(lane_[i], "uid")] | "";
             }
             JsonObjectConst o = st[laneObj_[i]];
             if (o.isNull()) continue;
@@ -283,7 +295,9 @@ void KlipperBackend::begin(const PrinterCfg& cfg) {
     for (int i = 0; i < KMAX; i++) {
         slots_[i] = SlotState{}; lane_[i] = laneObj_[i] = String();
         weight_[i] = initW_[i] = 0; totalW_[i] = 0; extT_[i] = bedT_[i] = 0;
+        uid_[i] = String();
     }
+    printState_ = String(); printEnded_ = false;
     hasSv_ = false;
     weightSkipped_ = false;
     nSlots_ = 0;
@@ -325,6 +339,7 @@ void KlipperBackend::refresh() {
         return;
     }
     JsonObject o = p["objects"].to<JsonObject>();
+    o["print_stats"].to<JsonArray>().add("state");
     if (sys_ == SYS_MMU) {
         JsonArray f = o["mmu"].to<JsonArray>();
         for (const char* k : { "num_gates", "gate", "gate_status", "gate_material", "gate_color" }) f.add(k);
@@ -417,6 +432,10 @@ bool KlipperBackend::assign(int idx, const TagInfo& t) {
                     + " VALUE=\"'" + svText(t.brand) + "'\"";
             script += "\nSAVE_VARIABLE VARIABLE=" + svName(lane_[idx], "total")
                     + " VALUE=" + totalW_[idx];
+            // Which chip is in the lane, so the weight AFC counts down can be
+            // reported to that spool later. Hex only - nothing to escape.
+            script += "\nSAVE_VARIABLE VARIABLE=" + svName(lane_[idx], "uid")
+                    + " VALUE=\"'" + svText(t.uid) + "'\"";
         }
     }
 
@@ -428,4 +447,18 @@ bool KlipperBackend::assign(int idx, const TagInfo& t) {
     // printer reports is the only proof that the macro did what it was asked.
     lastReq_ = millis() - 4500;
     return true;
+}
+
+int KlipperBackend::spoolLevels(SpoolLevel* out, int max) {
+    // AFC only: it is the one system here that counts the weight down.
+    if (sys_ != SYS_AFC || !connected_) return 0;
+    int n = 0;
+    for (int i = 0; i < nSlots_ && n < max; i++) {
+        const SlotState& s = slots_[i];
+        if (!s.known || s.grams < 0 || uid_[i].isEmpty()) continue;
+        out[n].uid = uid_[i];
+        out[n].grams = s.grams;
+        n++;
+    }
+    return n;
 }

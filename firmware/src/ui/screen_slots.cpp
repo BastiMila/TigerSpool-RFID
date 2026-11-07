@@ -25,6 +25,9 @@ lv_obj_t* s_grid = nullptr;
 bool s_built = false;
 volatile int s_tapped = -1;
 volatile bool s_back = false;
+volatile bool s_push = false;
+lv_obj_t* s_pushNote = nullptr;   // the line under the push button, or null
+void onPush() { s_push = true; }
 lv_obj_t* s_progress = nullptr;   // the line under the spinner, or null
 // The grams line inside each block, or null where the printer reports none.
 // Its number changes while a printer prints; it is written into the label,
@@ -153,7 +156,8 @@ void progressText(char* out, size_t n, int tries, int budget, bool fetching) {
 
 void show(const char* printerName, PrinterBackend* backend,
           int selected, bool readerReady, int link,
-          int tries, int budget, bool fetching, bool cloud) {
+          int tries, int budget, bool fetching, bool cloud,
+          bool canPush, const char* pushNote) {
     lvgl_port::Lock lvglGuard;   // LVGL is not reentrant - see lvgl_port.h
     // No backend is a state to DRAW, not a reason to draw nothing. When the
     // link has given up there is no backend at all, and that is exactly the
@@ -161,7 +165,8 @@ void show(const char* printerName, PrinterBackend* backend,
     const int n = backend ? backend->slotCount() : 0;
     bool anyKnown = false;
     for (int i = 0; i < n && !anyKnown; i++) anyKnown = backend->slot(i).known;
-    const uint32_t sig = signature(backend, n, selected, link) ^ (cloud ? 0x5A5Au : 0u);
+    const uint32_t sig = signature(backend, n, selected, link) ^ (cloud ? 0x5A5Au : 0u)
+                       ^ (canPush ? 0xA5A50000u : 0u);
     // Nothing has changed: leave the screen alone. The header was built with
     // this same `link`, so its dot and its retry button are already right -
     // rebuilding them here once per frame stacked a fresh button on the old
@@ -184,10 +189,15 @@ void show(const char* printerName, PrinterBackend* backend,
         }
         for (int i = 0; i < n && i < MAX_CELLS; i++)
             if (s_fill[i] && s_pct[i] != backend->slot(i).percent) applyLevel(i, backend->slot(i).percent);
+        if (s_pushNote) {
+            const char* t = pushNote ? pushNote : "";
+            if (strcmp(lv_label_get_text(s_pushNote), t)) lv_label_set_text(s_pushNote, t);
+        }
         return;
     }
     s_built = true; s_lastCount = n; s_lastSig = sig;
     s_progress = nullptr;              // whatever it pointed at is about to go
+    s_pushNote = nullptr;
     for (int i = 0; i < MAX_CELLS; i++) s_grams[i] = s_fill[i] = s_mat[i] = nullptr;   // so are these
 
     lv_obj_t* body = frame::build(printerName, onBack);
@@ -504,6 +514,11 @@ void show(const char* printerName, PrinterBackend* backend,
     // connected to it, and "looking for printers" would be answering a
     // question nobody asked.
     if (n == 0 && !cloud) frame::caption(i18n::T(S_FIND_PRINTERS), theme::TEXT_DIM);
+
+    if (canPush && n > 0) {
+        frame::button(body, i18n::T(S_PUSH_WEIGHTS), 0, onPush);
+        s_pushNote = frame::caption(pushNote ? pushNote : "", theme::TEXT_DIM);
+    }
 }
 
 void showCloudNotice(const char* slotLabel) {
@@ -557,6 +572,7 @@ void showCloudNotice(const char* slotLabel) {
 int  takeTappedSlot() { int v = s_tapped; s_tapped = -1; return v; }
 bool takeBack()       { bool v = s_back; s_back = false; return v; }
 bool takeRetry()      { bool v = s_retry; s_retry = false; return v; }
+bool takePush() { const bool p = s_push; s_push = false; return p; }
 bool takeCancelLink() { bool v = s_cancelLink; s_cancelLink = false; return v; }
 
 }  // namespace screen_slots

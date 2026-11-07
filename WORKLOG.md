@@ -44,6 +44,13 @@ message, and reset it to this header.
   answer that the spool has no weight is not asked again.
 - `scripts/moonraker-ws-mock.py` understands `SET_WEIGHT`, `AFC_SET_SPOOL_TEMP`
   and `SAVE_VARIABLE`.
+- Prototype, pending TigerTag's answer on who may write the field: the weight
+  AFC counts down is written back to the spool's `weight_available` in the
+  account, from the button "Weights to the account" under the slot grid and by
+  itself when a print finishes or is cancelled (`print_stats.state`). Only lanes
+  this device filled (chip UID kept as `tt_<lane>_uid` in `save_variables`),
+  only a document that exists, only downwards, twin chip included, `last_update`
+  stamped by the server (`ttcloud::startWeightPush`).
 - Previews: `setacct-out`, `readcloud`, `readcloud-wait`, `scanweight`,
   `scanretry`, `resultweight`, `resultgrams`.
 

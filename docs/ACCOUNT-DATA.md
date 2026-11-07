@@ -170,6 +170,29 @@ a phone, and it is why `uids` exists in the schema.
   background, and a failure is not shown to the user — the filament is in the
   printer either way.
 
+### The spool's weight, from a Klipper/AFC printer (prototype)
+
+AFC counts each lane's weight down as it prints. For the lanes this device
+filled itself - the chip's UID is kept on the printer as `tt_<lane>_uid` in
+`save_variables` - that figure is written back to
+`users/{uid}/inventory/{UID}`, on the button under the slot grid and when a
+print finishes or is cancelled (`ttcloud::startWeightPush`):
+
+| Field | Written |
+|---|---|
+| `weight_available` | the grams AFC reports, also on the twin chip (`twin_tag_uid`) |
+| `last_update` | the server's time (`REQUEST_TIME`) |
+
+- **Only a document that exists** (`currentDocument.exists`): a spool is never
+  created in the account.
+- **Only downwards.** A figure at or above the one in the account is skipped, so
+  an estimate from the printer never overwrites a lower weighing.
+- **No queue.** A failed write is lost; the next push carries the current figure.
+
+`weight_available` is the TigerScale's field. Whether a second writer on it is
+acceptable is still to be decided with TigerTag - see
+[ROADMAP.md](ROADMAP.md), "The spool's weight from the printer".
+
 ---
 
 ## Reading efficiently

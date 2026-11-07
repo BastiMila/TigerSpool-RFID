@@ -20,9 +20,13 @@ namespace screen_slots {
 // `cloud` marks a printer this device can read and must not write. Its slots
 // are drawn and are NOT tappable, and the screen says why rather than letting
 // somebody press a cell that will never do anything.
+// `canPush` adds a button under the grid that sends what the printer says is
+// left on each spool to the account; `pushNote` is the line under it (what the
+// last push did), written into the label without a rebuild. nullptr for none.
 void show(const char* printerName, PrinterBackend* backend,
           int selected, bool readerReady, int link,
-          int tries, int budget, bool fetching, bool cloud);
+          int tries, int budget, bool fetching, bool cloud,
+          bool canPush = false, const char* pushNote = nullptr);
 // The answer to a tap on a cloud printer's slot: what it is, and the one thing
 // that would change it. Its own screen rather than a line on the grid - a
 // warning that is always on display stops being read.
@@ -36,5 +40,6 @@ bool takeRetry();          // the user asked to reconnect
 // attempt: connections are held open across screens, so leaving on its own
 // would let a printer that is not answering keep retrying unseen.
 bool takeCancelLink();
+bool takePush();           // the user asked to send the weights to the account
 
 }  // namespace screen_slots

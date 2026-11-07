@@ -26,6 +26,23 @@ two should do it the same way.
 
 ---
 
+## The spool's weight from the printer
+
+**Built as a prototype, blocked on a decision.** A Klipper/AFC printer counts
+each lane's weight down while it prints, and the device writes that figure back
+to the spool's `weight_available` (rules in
+[ACCOUNT-DATA.md](ACCOUNT-DATA.md#the-spools-weight-from-a-klipperafc-printer-prototype)).
+That field is the TigerScale's, so this makes the device a second writer on it -
+exactly what the heartbeat section below warns against.
+
+**Decide with TigerTag:** may the device write `weight_available` (made safe by
+writing only downwards), or should it write a field of its own, or go through a
+Cloud Function? And does Tiger Studio already update the weight after a Klipper
+print, in which case the device should not do it twice. If the answer is a
+separate field, only `ttcloud::startWeightPush` changes.
+
+---
+
 ## The account: a heartbeat
 
 **The device never writes to the account.** It reads printers, the profile and

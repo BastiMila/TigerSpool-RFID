@@ -192,4 +192,21 @@ namespace ttcloud {
     // does not exist answers with both figures at -1. A read that failed is
     // held too, with `ok` false, and does not stop requestSpool asking again.
     bool spoolCached(const String& chipUid, SpoolStock& out);
+
+    // Writing what a printer says is left back to the spool's document.
+    //
+    // PROTOTYPE, waiting on TigerTag's answer: the TigerScale already writes
+    // `weight_available`, and this makes the device a second writer on that
+    // field. Kept safe by three rules: only a document that exists is written
+    // (never created), only DOWNWARDS (a figure at or above the account's is
+    // skipped, so an estimate never overwrites a lower measurement), and the
+    // twin chip gets the same figure. `last_update` is stamped by the server.
+    // No queue: a failed write is lost and the next push carries current values.
+    struct SpoolWeight { String uid; int grams = -1; };
+    constexpr int MAX_PUSH = 20;
+    bool startWeightPush(const SpoolWeight* w, int n);
+    bool weightPushBusy();
+    // The outcome of the last push, once: documents written, skipped (not
+    // lower, not in the account), failed.
+    bool takeWeightPush(int& written, int& skipped, int& failed);
 }

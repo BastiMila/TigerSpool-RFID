@@ -1054,6 +1054,8 @@ bool ttcloud::consumeChanged() { bool v = g_changed; g_changed = false; return v
 static volatile bool g_asyncBusy = false;
 // A read of the spool's stock from the account; see requestSpool() at the foot of the file.
 static volatile bool g_spoolBusy = false;
+// Weights written back to the inventory; see startWeightPush() at the foot of the file.
+static volatile bool g_pushBusy = false;
 static volatile bool g_asyncDone = false;
 static String        g_asyncSummary;
 
@@ -1080,7 +1082,7 @@ bool ttcloud::needsRoom() { return g_wantRoom; }
 
 bool ttcloud::startAsyncSync() {
     // A presence beat on its own task shares the session token: one at a time.
-    if (g_asyncBusy || g_spoolBusy || ttcloud::heartbeatBusy()) return false;
+    if (g_asyncBusy || g_spoolBusy || g_pushBusy || ttcloud::heartbeatBusy()) return false;
 
     // Ask for the room BEFORE trying, not after failing.
     //
@@ -1415,7 +1417,7 @@ void heartbeatTaskFn(void*) {
 }  // namespace
 
 bool ttcloud::startAsyncHeartbeat(const Presence& p, bool full) {
-    if (g_hbBusy || g_hbDone || g_asyncBusy || g_spoolBusy) return false;
+    if (g_hbBusy || g_hbDone || g_asyncBusy || g_spoolBusy || g_pushBusy) return false;
     g_hbP = p;
     const int n = p.printerIdCount < MAX_PRINTERS ? p.printerIdCount : MAX_PRINTERS;
     for (int i = 0; i < n; i++) g_hbIds[i] = p.printerIds[i];
@@ -1510,7 +1512,7 @@ bool ttcloud::requestSpool(const String& chipUid) {
     const String uid = stockKey(chipUid);
     if (uid.isEmpty() || g_uid.isEmpty() || g_spoolBusy) return false;
     if (g_stockDone && g_stock.ok && uid == g_stockUid && millis() - g_stockAt < STOCK_TTL_MS) return false;
-    if (g_asyncBusy || g_hbBusy) return false;
+    if (g_asyncBusy || g_hbBusy || g_pushBusy) return false;
     // A handshake needs one large block, the same figure the sync asks for.
     if (ESP.getMaxAllocHeap() < SYNC_STACK + 2048) {
         Serial.printf("[spool] no room for the read: largest block %u\n",
@@ -1544,3 +1546,106 @@ bool ttcloud::spoolCached(const String& chipUid, SpoolStock& out) {
     return true;
 }
 
+// ---------------------------------------------------------------- weight push
+namespace {
+    ttcloud::SpoolWeight g_push[ttcloud::MAX_PUSH];
+    int                  g_pushN = 0;
+    volatile bool        g_pushDone = false;
+    int                  g_pushWritten = 0, g_pushSkipped = 0, g_pushFailed = 0;
+
+    // One write of `grams` to an inventory document that must already exist.
+    void addWrite(JsonArray writes, const String& docUid, int grams) {
+        JsonObject w  = writes.add<JsonObject>();
+        JsonObject up = w["update"].to<JsonObject>();
+        up["name"] = String("projects/") + PROJECT + "/databases/(default)/documents/users/" +
+                     g_uid + "/inventory/" + docUid;
+        up["fields"]["weight_available"]["integerValue"] = String(grams);
+        w["updateMask"]["fieldPaths"].to<JsonArray>().add("weight_available");
+        // Never create a spool the account does not have.
+        w["currentDocument"]["exists"] = true;
+        JsonObject t = w["updateTransforms"].to<JsonArray>().add<JsonObject>();
+        t["fieldPath"] = "last_update";
+        t["setToServerValue"] = "REQUEST_TIME";
+    }
+
+    void pushTaskFn(void*) {
+        int written = 0, skipped = 0, failed = 0;
+        const String base = String("https://firestore.googleapis.com/v1/projects/") + PROJECT +
+                            "/databases/(default)/documents";
+        const bool token = ensureToken();
+        for (int i = 0; i < g_pushN; i++) {
+            const String uid = stockKey(g_push[i].uid);
+            const int grams = g_push[i].grams;
+            if (!token) { failed++; continue; }
+            // What the account holds now, and the twin chip if there is one.
+            String resp;
+            const int hc = httpsGET(base + "/users/" + g_uid + "/inventory/" + uid +
+                                    "?mask.fieldPaths=weight_available&mask.fieldPaths=twin_tag_uid"
+                                    "&mask.fieldPaths=deleted", resp, g_idToken.c_str());
+            if (hc == 404) { skipped++; Serial.printf("[push] %s: not in the account\n", uid.c_str()); continue; }
+            if (hc != 200) { failed++;  Serial.printf("[push] %s: read http %d\n", uid.c_str(), hc); continue; }
+            JsonDocument d;
+            if (deserializeJson(d, resp)) { failed++; continue; }
+            JsonObjectConst f = d["fields"];
+            if (fsBool(f, "deleted") == 1) { skipped++; continue; }
+            const String cur = fsStr(f, "weight_available");
+            const int have = cur.length() ? (int)cur.toFloat() : -1;
+            if (have >= 0 && grams >= have) {
+                skipped++;
+                Serial.printf("[push] %s: %d g is not below the account's %d g - left\n",
+                              uid.c_str(), grams, have);
+                continue;
+            }
+            String twin = fsStr(f, "twin_tag_uid");
+            twin = stockKey(twin);
+
+            JsonDocument c;
+            JsonArray writes = c["writes"].to<JsonArray>();
+            addWrite(writes, uid, grams);
+            if (twin.length() && twin != uid) addWrite(writes, twin, grams);
+            String body; serializeJson(c, body);
+            String cr;
+            const int wc = httpsPOST(base + ":commit", body, cr, g_idToken.c_str());
+            if (wc == 200) {
+                written++;
+                Serial.printf("[push] %s%s%s: %d -> %d g\n", uid.c_str(), twin.length() ? " + " : "",
+                              twin.c_str(), have, grams);
+            } else {
+                failed++;
+                Serial.printf("[push] %s: write http %d %.120s\n", uid.c_str(), wc, cr.c_str());
+            }
+        }
+        g_pushWritten = written; g_pushSkipped = skipped; g_pushFailed = failed;
+        g_pushDone = true;
+        g_pushBusy = false;        // last, so a reader that sees "not busy" sees the result
+        vTaskDelete(nullptr);
+    }
+}  // namespace
+
+bool ttcloud::startWeightPush(const SpoolWeight* w, int n) {
+    if (n <= 0 || g_uid.isEmpty()) return false;
+    if (g_pushBusy || g_asyncBusy || g_spoolBusy || g_hbBusy) return false;
+    if (ESP.getMaxAllocHeap() < SYNC_STACK + 2048) {
+        Serial.printf("[push] no room: largest block %u\n", (unsigned)ESP.getMaxAllocHeap());
+        return false;
+    }
+    if (n > MAX_PUSH) n = MAX_PUSH;
+    for (int i = 0; i < n; i++) g_push[i] = w[i];
+    g_pushN = n;
+    g_pushDone = false;
+    g_pushBusy = true;
+    if (xTaskCreatePinnedToCore(pushTaskFn, "ttPush", SYNC_STACK, nullptr, 1, nullptr, 0) != pdPASS) {
+        g_pushBusy = false;
+        return false;
+    }
+    return true;
+}
+
+bool ttcloud::weightPushBusy() { return g_pushBusy; }
+
+bool ttcloud::takeWeightPush(int& written, int& skipped, int& failed) {
+    if (!g_pushDone || g_pushBusy) return false;
+    g_pushDone = false;
+    written = g_pushWritten; skipped = g_pushSkipped; failed = g_pushFailed;
+    return true;
+}

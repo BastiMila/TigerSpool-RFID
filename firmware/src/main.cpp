@@ -1623,6 +1623,55 @@ static bool     presenceForce = true;
 static bool     presenceUsed  = false;   // a spool was written since the last beat
 static uint32_t presenceHold  = 0;       // millis until which beats are held off
 
+// ---------------------------------------------------------------- weight push
+// What an AFC printer says is left on the spools this device put there, sent
+// to the account - on the button under the slot grid, and by itself when a
+// print ends. PROTOTYPE: see ttcloud::startWeightPush() for the rules and why.
+static bool        pushAuto     = false;     // a print ended; push when the account is free
+static uint32_t    pushAutoAt   = 0;
+static PrinterBackend* pushAutoBe = nullptr;
+static String      pushNote;                 // the line under the button
+static uint32_t    pushNoteAt   = 0;
+
+static bool startPush(PrinterBackend* be, const char* why) {
+    PrinterBackend::SpoolLevel lv[ttcloud::MAX_PUSH];
+    const int n = be ? be->spoolLevels(lv, ttcloud::MAX_PUSH) : 0;
+    if (n <= 0) { Serial.printf("[push] %s: no spool of this device in the lanes\n", why); return true; }
+    ttcloud::SpoolWeight w[ttcloud::MAX_PUSH];
+    for (int i = 0; i < n; i++) { w[i].uid = lv[i].uid; w[i].grams = lv[i].grams; }
+    if (!ttcloud::startWeightPush(w, n)) return false;
+    Serial.printf("[push] %s: %d spool(s)\n", why, n);
+    pushNote = i18n::T(S_PUSH_BUSY); pushNoteAt = millis();
+    return true;
+}
+
+static void weightPushTick() {
+    int wr = 0, sk = 0, fa = 0;
+    if (ttcloud::takeWeightPush(wr, sk, fa)) {
+        char t[64];
+        if (fa && !wr) snprintf(t, sizeof(t), "%s", i18n::T(S_PUSH_FAIL));
+        else           snprintf(t, sizeof(t), i18n::T(S_PUSH_DONE), wr, sk);
+        pushNote = t; pushNoteAt = millis();
+        Serial.printf("[push] done: %d written, %d skipped, %d failed\n", wr, sk, fa);
+    }
+    // The note says what the last push did, for a minute.
+    if (pushNote.length() && !ttcloud::weightPushBusy() && millis() - pushNoteAt > 60000UL)
+        pushNote = "";
+
+    // A print that ended on any Klipper link.
+    for (int i = 0; i < MAX_LINKS; i++) {
+        Link& l = links[i];
+        if (l.printer < 0 || !l.be || printers[l.printer].type != PT_KLIPPER) continue;
+        if (l.be->takePrintEnded()) { pushAuto = true; pushAutoAt = millis(); pushAutoBe = l.be; }
+    }
+    // Tried until the account is free, for two minutes: the sync or the
+    // presence beat may hold the token for a moment.
+    if (pushAuto && ttcloud::haveSession()) {
+        if (millis() - pushAutoAt > 120000UL) { pushAuto = false; Serial.println("[push] after print: gave up"); }
+        else if (startPush(pushAutoBe, "after print")) pushAuto = false;
+    }
+}
+
 static void presenceTick() {
     // The outcome of the last beat, sent from its own task - see
     // ttcloud::startAsyncHeartbeat(). Handled here, on the loop that owns the
@@ -2106,6 +2155,7 @@ void loop() {
     battery::loop();             // one ADC read every two seconds
     presenceWatch();             // notice what deserves an immediate beat
     presenceTick();              // and tell the account this device is here
+    weightPushTick();            // and what a print left on the spools
     BENCH_MARK("batt+presence");
     if (webStarted || webcfg::apActive()) webcfg::loop();
     BENCH_MARK("web");
@@ -3084,10 +3134,15 @@ void loop() {
     }
 
     case ST_GRID: {
+        PrinterBackend::SpoolLevel probe[1];
+        const bool canPush = backend && ttcloud::haveSession()
+                          && printers[selectedPrinter].type == PT_KLIPPER
+                          && backend->spoolLevels(probe, 1) > 0;
         screen_slots::show(printers[selectedPrinter].name.c_str(), backend,
                            selSlot, nfcReady, (int)linkState,
                            linkTries, linkBudget, ttcloud::asyncBusy(),
-                           readOnly(printers[selectedPrinter]));
+                           readOnly(printers[selectedPrinter]),
+                           canPush, pushNote.length() ? pushNote.c_str() : nullptr);
         lvgl_port::loop();
 
         if (screen_slots::takeCancelLink()) {
@@ -3098,6 +3153,9 @@ void loop() {
                 Serial.printf("[link] cancelled by the user: %s\n",
                               printers[selectedPrinter].name.c_str());
             }
+        }
+        if (screen_slots::takePush() && !ttcloud::weightPushBusy()) {
+            if (!startPush(backend, "button")) { pushNote = i18n::T(S_PUSH_FAIL); pushNoteAt = millis(); }
         }
         if (screen_slots::takeRetry()) { linkRetry(); screen_slots::invalidate(); break; }
         if (screen_slots::takeBack()) { backToPrinters(); break; }

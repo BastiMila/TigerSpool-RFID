@@ -203,6 +203,10 @@ enum StrId : uint8_t {
     S_SRC_CLOUD,
     S_WEIGHT_WAIT,
     S_WEIGHT_RETRY,
+    S_PUSH_WEIGHTS,
+    S_PUSH_BUSY,
+    S_PUSH_DONE,
+    S_PUSH_FAIL,
     S_COUNT
 };
 

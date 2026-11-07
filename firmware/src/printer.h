@@ -143,6 +143,16 @@ public:
     // The grams the last assign() wrote to the slot, for the result screen to
     // show; -1 when it wrote none.
     virtual int sentGrams() { return -1; }
+
+    // Spools this backend can report back to the account: a chip it wrote to a
+    // slot itself, and the grams the printer says are left on it. Only slots
+    // whose chip it knows - a spool loaded by hand has none. Returns how many
+    // were written into `out`.
+    struct SpoolLevel { String uid; int grams = -1; };
+    virtual int spoolLevels(SpoolLevel* out, int max) { (void)out; (void)max; return 0; }
+    // A print has just ended (finished or cancelled) since the last call:
+    // the moment the weights are worth reporting without being asked.
+    virtual bool takePrintEnded() { return false; }
     // Where the next assign() takes the spool's weight from: the account (the
     // figure a TigerScale keeps up to date) or the chip (what was written on
     // it, but needs no network). The user's choice, held by main.cpp and handed

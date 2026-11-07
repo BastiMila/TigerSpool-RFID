@@ -50,6 +50,8 @@ public:
     bool assign(int i, const TagInfo& t) override;
     bool weightSkipped() override { return weightSkipped_; }
     int  sentGrams() override { return sentGrams_; }
+    int  spoolLevels(SpoolLevel* out, int max) override;
+    bool takePrintEnded() override { const bool e = printEnded_; printEnded_ = false; return e; }
     void setWeightFromCloud(bool v) override { weightFromCloud_ = v; }
     String status() override;
     void refresh() override;
@@ -90,6 +92,9 @@ private:
     int       extT_[KMAX]   = {};        // AFC's extruder_temp / bed_temp, for a
     int       bedT_[KMAX]   = {};        // tag that carries only one of the two
     bool      hasSv_ = false;            // the printer has [save_variables]
+    String    uid_[KMAX];                // tt_<lane>_uid: the chip this device put there
+    String    printState_;               // print_stats.state, last seen
+    bool      printEnded_ = false;       // printing -> complete / cancelled, not yet taken
     bool      weightSkipped_   = false;   // the last assign went out without SET_WEIGHT
     int       sentGrams_       = -1;      // the WEIGHT the last assign sent, -1 for none
     bool      weightFromCloud_ = true;    // the user's choice, set before every assign
