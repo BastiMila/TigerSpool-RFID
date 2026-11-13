@@ -93,6 +93,7 @@ private:
     int       bedT_[KMAX]   = {};        // tag that carries only one of the two
     bool      hasSv_ = false;            // the printer has [save_variables]
     String    uid_[KMAX];                // tt_<lane>_uid: the chip this device put there
+    uint32_t  uidClearAt_[KMAX] = {};    // when an empty lane's uid was last cleared
     String    printState_;               // print_stats.state, last seen
     bool      printEnded_ = false;       // printing -> complete / cancelled, not yet taken
     bool      weightSkipped_   = false;   // the last assign went out without SET_WEIGHT

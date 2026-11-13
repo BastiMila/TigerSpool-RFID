@@ -187,6 +187,10 @@ print finishes or is cancelled (`ttcloud::startWeightPush`):
   created in the account.
 - **Only downwards.** A figure at or above the one in the account is skipped, so
   an estimate from the printer never overwrites a lower weighing.
+- **A lane that goes empty forgets its chip.** The device clears `tt_<lane>_uid`
+  when it sees the lane empty, so a spool loaded by hand afterwards is never
+  reported as the old one. A swap made entirely while the device was off is not
+  seen; only the downwards rule stands between that and a wrong figure.
 - **No queue.** A failed write is lost; the next push carries the current figure.
 
 `weight_available` is the TigerScale's field. Whether a second writer on it is

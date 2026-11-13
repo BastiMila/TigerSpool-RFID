@@ -43,14 +43,24 @@ message, and reset it to this header.
   the account...", then "No answer - asking the account once more..."). An
   answer that the spool has no weight is not asked again.
 - `scripts/moonraker-ws-mock.py` understands `SET_WEIGHT`, `AFC_SET_SPOOL_TEMP`
-  and `SAVE_VARIABLE`.
+  and `SAVE_VARIABLE`, and simulates a print: `POST /printer/print/start` reports
+  `printing` for `--print-seconds` while drawing `--print-grams` off every loaded
+  AFC lane, then `complete`; `POST /printer/print/cancel` ends it as `cancelled`. A page at `/` shows the
+  lanes, what TigerSpool stored with them (brand, quantity, chip UID) and the
+  print state, starts and cancels a print and sets a lane's weight (through
+  `POST /printer/gcode/script`, which the mock now answers); GET queries are
+  URL-decoded, so `AFC_lane%20lane1` finds its lane. Each lane on the page can be
+  loaded or unloaded (`POST /mock/lane?name=&loaded=0|1`, the mock's own call);
+  unloading clears material and colour as AFC does.
 - Prototype, pending TigerTag's answer on who may write the field: the weight
   AFC counts down is written back to the spool's `weight_available` in the
   account, from the button "Weights to the account" under the slot grid and by
   itself when a print finishes or is cancelled (`print_stats.state`). Only lanes
   this device filled (chip UID kept as `tt_<lane>_uid` in `save_variables`),
   only a document that exists, only downwards, twin chip included, `last_update`
-  stamped by the server (`ttcloud::startWeightPush`).
+  stamped by the server (`ttcloud::startWeightPush`). A lane seen empty has its
+  `tt_<lane>_uid` cleared, so a spool loaded by hand later is not reported as
+  the old one.
 - Previews: `setacct-out`, `readcloud`, `readcloud-wait`, `scanweight`,
   `scanretry`, `resultweight`, `resultgrams`.
 

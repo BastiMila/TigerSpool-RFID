@@ -181,6 +181,22 @@ void KlipperBackend::applyStatus(JsonObjectConst st) {
             SlotState& s = slots_[i];
             const bool empty = o["load"].is<bool>() && o["prep"].is<bool>()
                             && !o["load"].as<bool>() && !o["prep"].as<bool>();
+            // A lane that is empty no longer holds the spool this device put
+            // there. Its chip is forgotten on the printer, so a spool loaded by
+            // hand afterwards is never reported to the old spool's account
+            // entry. By state, not by the change: a spool taken out while the
+            // device was off is caught too. At most every 30 s while the
+            // printer has not yet shown the cleared value.
+            if (empty && hasSv_ && uid_[i].length()
+                    && (uidClearAt_[i] == 0 || millis() - uidClearAt_[i] > 30000)) {
+                JsonDocument p;
+                p["script"] = "SAVE_VARIABLE VARIABLE=" + svName(lane_[i], "uid") + " VALUE=\"''\"";
+                if (rpc("printer.gcode.script", p, ID_SCRIPT)) {
+                    uidClearAt_[i] = millis();
+                    Serial.printf("[klipper] lane %s empty - forgot chip %s\n",
+                                  lane_[i].c_str(), uid_[i].c_str());
+                }
+            }
             const char* mat = o["material"] | "";
             s.type  = empty ? String() : shown(mat);
             s.known = !empty && *mat;
@@ -295,7 +311,7 @@ void KlipperBackend::begin(const PrinterCfg& cfg) {
     for (int i = 0; i < KMAX; i++) {
         slots_[i] = SlotState{}; lane_[i] = laneObj_[i] = String();
         weight_[i] = initW_[i] = 0; totalW_[i] = 0; extT_[i] = bedT_[i] = 0;
-        uid_[i] = String();
+        uid_[i] = String(); uidClearAt_[i] = 0;
     }
     printState_ = String(); printEnded_ = false;
     hasSv_ = false;
