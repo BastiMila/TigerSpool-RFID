@@ -1672,6 +1672,101 @@ static void weightPushTick() {
     }
 }
 
+// ---------------------------------------------------------------- slot book
+// Which spool this device put in which printer slot, published as `slots` on
+// its own presence document (docs/PRESENCE.md) - for a slicer plugin that must
+// know which spool a slot holds, where the printer reports only a material and
+// a colour. Owned here, like every other state.
+//
+//   PENDING  sent; waiting for the printer to report the slot (up to 30 s).
+//            Published as null: the old spool is gone either way.
+//   LIVE     the printer reported it; `mat` and the colour are what it reported,
+//            so a later report that differs means somebody changed the slot.
+//   CLEARED  the slot is empty or holds something else: an explicit null.
+struct BookEntry {
+    bool     used = false;
+    String   pid, key, uid, mat;
+    uint8_t  r = 0, g = 0, b = 0;
+    int64_t  setAt = 0;          // ms since epoch, 0 = not yet known
+    uint32_t at = 0;             // millis of the send, then of the confirmation
+    uint8_t  st = 0;             // 0 PENDING, 1 LIVE, 2 CLEARED
+};
+static BookEntry book[ttcloud::MAX_SLOTPUB];
+static bool      bookRestored = false;
+static uint32_t  bookUpSince[MAX_LINKS] = {};
+
+static BookEntry* bookEntry(const String& pid, const String& key, bool create) {
+    BookEntry* freeE = nullptr; BookEntry* oldCleared = nullptr; BookEntry* oldest = nullptr;
+    for (auto& e : book) {
+        if (e.used && e.pid == pid && e.key == key) return &e;
+        if (!e.used) { if (!freeE) freeE = &e; continue; }
+        if (e.st == 2 && (!oldCleared || e.at < oldCleared->at)) oldCleared = &e;
+        if (!oldest || e.at < oldest->at) oldest = &e;
+    }
+    if (!create) return nullptr;
+    BookEntry* e = freeE ? freeE : oldCleared ? oldCleared : oldest;
+    *e = BookEntry();
+    e->used = true; e->pid = pid; e->key = key;
+    return e;
+}
+
+static void bookOnSent(int printerIdx, PrinterBackend* be, int slot, const String& uid) {
+    if (!be) return;
+    const String pid = ttcloud::printerDocId(printerIdx), key = be->slotKey(slot);
+    if (pid.isEmpty() || key.isEmpty() || uid.isEmpty()) return;
+    BookEntry* e = bookEntry(pid, key, true);
+    e->uid = uid; e->uid.toUpperCase();
+    e->st = 0; e->at = millis(); e->setAt = 0; e->mat = "";
+    presenceForce = true;
+}
+
+static void slotBookTick() {
+    bool changed = false;
+    for (int li = 0; li < MAX_LINKS; li++) {
+        Link& l = links[li];
+        const bool up = l.printer >= 0 && l.be && l.be->connected();
+        if (!up) { bookUpSince[li] = 0; continue; }
+        if (!bookUpSince[li]) bookUpSince[li] = millis();
+        const String pid = ttcloud::printerDocId(l.printer);
+        if (pid.isEmpty()) continue;
+        for (auto& e : book) {
+            if (!e.used || e.pid != pid || e.st == 2) continue;
+            int idx = -1;
+            for (int i = 0; i < l.be->slotCount(); i++) if (l.be->slotKey(i) == e.key) { idx = i; break; }
+            if (idx < 0) continue;
+            const SlotState& s = l.be->slot(idx);
+            if (e.st == 0) {
+                if (millis() - e.at < 3000) continue;
+                if (s.known && s.type.length()) {
+                    e.mat = s.type; e.r = s.r; e.g = s.g; e.b = s.b;
+                    e.st = 1; e.at = millis(); changed = true;
+                    Serial.printf("[slots] %s/%s holds %s (%s #%02X%02X%02X)\n", pid.c_str(),
+                                  e.key.c_str(), e.uid.c_str(), e.mat.c_str(), e.r, e.g, e.b);
+                } else if (millis() - e.at > 30000) {
+                    e.st = 2; changed = true;
+                    Serial.printf("[slots] %s/%s never reported after the send - cleared\n",
+                                  pid.c_str(), e.key.c_str());
+                }
+            } else if (millis() - bookUpSince[li] > 15000) {
+                // Judged only once the link has been up a while: straight after
+                // a (re)connect a backend reports its slots as not known yet.
+                const bool same = s.known && s.type == e.mat && s.r == e.r && s.g == e.g && s.b == e.b;
+                if (!same) {
+                    e.st = 2; changed = true;
+                    Serial.printf("[slots] %s/%s changed at the printer (%s #%02X%02X%02X) - cleared\n",
+                                  pid.c_str(), e.key.c_str(), s.known ? s.type.c_str() : "empty",
+                                  s.r, s.g, s.b);
+                }
+            }
+        }
+    }
+    // A confirmation that came before the first beat taught the clock.
+    const int64_t now = ttcloud::epochMs();
+    if (now) for (auto& e : book)
+        if (e.used && e.st == 1 && !e.setAt) { e.setAt = now - (int64_t)(millis() - e.at); changed = true; }
+    if (changed) presenceForce = true;
+}
+
 static void presenceTick() {
     // The outcome of the last beat, sent from its own task - see
     // ttcloud::startAsyncHeartbeat(). Handled here, on the loop that owns the
@@ -1686,6 +1781,27 @@ static void presenceTick() {
                 // A failed full beat STAYS full: half a document in Studio is
                 // worse than a document that appears thirty seconds later.
                 if (full) presenceFull = false;
+                if (full && !bookRestored) {
+                    static ttcloud::SlotPub got[ttcloud::MAX_SLOTPUB];
+                    int n = 0;
+                    if (ttcloud::takeRestoredSlots(got, ttcloud::MAX_SLOTPUB, n)) {
+                        for (int i = 0; i < n; i++) {
+                            if (bookEntry(got[i].printerId, got[i].key, false)) continue;   // sent this boot
+                            BookEntry* e = bookEntry(got[i].printerId, got[i].key, true);
+                            e->at = millis();
+                            if (got[i].cleared) { e->st = 2; continue; }
+                            e->st = 1; e->uid = got[i].uid; e->mat = got[i].material;
+                            e->setAt = got[i].setAtMs;
+                            unsigned rgb = 0;
+                            sscanf(got[i].color.c_str(), "#%06x", &rgb);
+                            e->r = rgb >> 16; e->g = (rgb >> 8) & 255; e->b = rgb & 255;
+                        }
+                        bookRestored = true;
+                        Serial.printf("[slots] %d slot(s) carried on from the account\n", n);
+                    } else {
+                        presenceFull = true;   // the read did not answer: the next beat asks again
+                    }
+                }
                 fails = 0;
             } else if (++fails >= 3) {
                 // Three refusals in a row is not a passing fault. Hold off for
@@ -1742,6 +1858,21 @@ static void presenceTick() {
         const String id = ttcloud::printerDocId(i);
         if (id.length()) { up[nIds] = printerUp(i); ids[nIds++] = id; }
     }
+    static ttcloud::SlotPub pubs[ttcloud::MAX_SLOTPUB];
+    int nPub = 0;
+    for (auto& e : book) {
+        if (!e.used) continue;
+        ttcloud::SlotPub& s = pubs[nPub++];
+        s = ttcloud::SlotPub();
+        s.printerId = e.pid; s.key = e.key;
+        s.cleared = e.st != 1;
+        if (!s.cleared) {
+            char c[8]; snprintf(c, sizeof(c), "#%02X%02X%02X", e.r, e.g, e.b);
+            s.uid = e.uid; s.material = e.mat; s.color = c; s.setAtMs = e.setAt;
+        }
+    }
+    p.slots = pubs; p.slotCount = nPub; p.slotsReady = bookRestored;
+
     p.printersActive = active;
     p.printerIds     = ids;
     p.printerIdCount = nIds;
@@ -2156,6 +2287,7 @@ void loop() {
     presenceWatch();             // notice what deserves an immediate beat
     presenceTick();              // and tell the account this device is here
     weightPushTick();            // and what a print left on the spools
+    slotBookTick();              // and which spool is in which slot
     BENCH_MARK("batt+presence");
     if (webStarted || webcfg::apActive()) webcfg::loop();
     BENCH_MARK("web");
@@ -3308,6 +3440,7 @@ void loop() {
             // The one event worth interrupting the cadence for: Studio's
             // "last used" is what tells a user which box did the job.
             if (sendOk) { presenceUsed = true; presenceForce = true; }
+            if (sendOk) bookOnSent(selectedPrinter, backend, selSlot, tag.uid);
             // Re-read the printer's own state: several of these protocols
             // acknowledge a command they ignored, so the colour that actually
             // landed is the only thing worth showing.

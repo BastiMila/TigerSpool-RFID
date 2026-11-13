@@ -46,6 +46,14 @@ public:
     bool firstIsExternal() override { return false; }
     int  slotCount() override { return nSlots_; }
     const char* slotLabel(int i) override;
+    // AFC numbers its lanes from 1 and Happy Hare its gates from 0, as the
+    // labels already do; plain extruders take no spool, so they have none.
+    String slotKey(int i) override {
+        if (i < 0 || i >= nSlots_) return String();
+        if (sys_ == SYS_AFC) return String(i + 1);
+        if (sys_ == SYS_MMU) return String(i);
+        return String();
+    }
     const SlotState& slot(int i) override;
     bool assign(int i, const TagInfo& t) override;
     bool weightSkipped() override { return weightSkipped_; }

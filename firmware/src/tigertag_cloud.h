@@ -142,7 +142,38 @@ namespace ttcloud {
         // vouch for - no RTC, no NTP - so a time it wrote itself would be a
         // guess presented as a fact.
         bool          usedNow        = false;
+
+        // Which spool is in which printer slot, as far as this device knows:
+        // published as `slots` (docs/PRESENCE.md). Not written at all until
+        // `slotsReady` - the book has been read back from the account after
+        // boot - so a fresh device never wipes what an earlier boot published.
+        const struct SlotPub* slots = nullptr;
+        int           slotCount      = 0;
+        bool          slotsReady     = false;
     };
+
+    // One slot in the book. `cleared`: the slot is empty, or holds something
+    // other than what this device sent - written as an explicit null.
+    struct SlotPub {
+        String  printerId;   // the account's printer document id, as in printer_ids
+        String  key;         // PrinterBackend::slotKey
+        bool    cleared = true;
+        String  uid;         // inventory document id, upper-case hex
+        String  material;    // what the printer reported after the send
+        String  color;       // "#RRGGBB", as the printer reported it
+        int64_t setAtMs = 0; // ms since epoch, 0 when not known
+    };
+    constexpr int MAX_SLOTPUB = 32;
+
+    // The `slots` field as the account held it, read on a full beat. True once,
+    // when the read answered (an absent field is an answer: none); false when
+    // there is nothing new to take.
+    bool takeRestoredSlots(SlotPub* out, int max, int& n);
+
+    // Milliseconds since epoch, from the server's commitTime of the last beat
+    // plus the time since. 0 until a beat has gone through: the board has no
+    // clock of its own.
+    int64_t epochMs();
 
     // One Firestore commit, blocking, about a second. `full` also writes the
     // identity block and reads display_name before writing it, so a name typed

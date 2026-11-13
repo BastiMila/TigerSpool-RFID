@@ -4,6 +4,7 @@
 #   bash scripts/flash.sh                 build, then flash
 #   bash scripts/flash.sh --monitor       ... and open the serial console
 #   bash scripts/flash.sh --port /dev/... when auto-detection picks the wrong one
+#                                         (COM3 and the like on Windows)
 #   bash scripts/flash.sh --any          skip the board identity check
 #   bash scripts/flash.sh --fs            also upload the LittleFS image
 #   bash scripts/flash.sh --erase         wipe the whole chip first - see below
@@ -54,9 +55,18 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# PlatformIO keeps its own Python, and its pio shim, in penv/bin on macOS and
+# Linux and in penv/Scripts on Windows. Its installer puts neither on PATH, so
+# both are looked for there before giving up.
+PIOHOME="$HOME/.platformio"
+if ! command -v pio >/dev/null 2>&1; then
+  for d in "$PIOHOME/penv/bin" "$PIOHOME/penv/Scripts"; do
+    if [ -x "$d/pio" ] || [ -x "$d/pio.exe" ]; then PATH="$d:$PATH"; break; fi
+  done
+fi
 command -v pio >/dev/null 2>&1 || {
   echo "error: pio not on PATH. Install PlatformIO, or use its own shim:"
-  echo "       ~/.platformio/penv/bin/pio"
+  echo "       ~/.platformio/penv/bin/pio (Windows: ~/.platformio/penv/Scripts/pio.exe)"
   exit 2
 }
 
@@ -82,10 +92,15 @@ command -v pio >/dev/null 2>&1 || {
 # into an empty MAC and the script into "no board is plugged in", with a board
 # plugged in. The uploader tool that ships with the platform is always there,
 # so it is the fallback.
-PIOPY="$HOME/.platformio/penv/bin/python"
+PIOPY="$PIOHOME/penv/bin/python"
+[ -x "$PIOPY" ] || PIOPY="$PIOHOME/penv/Scripts/python.exe"
 ESPTOOL="$PIOPY -m esptool"
+# The packages live under PLATFORMIO_CORE_DIR when that is set - a short path
+# such as C:\p is the usual cure for Windows' path-length limit.
+CORE="${PLATFORMIO_CORE_DIR:-$PIOHOME}"
+command -v cygpath >/dev/null 2>&1 && CORE="$(cygpath -u "$CORE")"
 if ! $PIOPY -c "import esptool" >/dev/null 2>&1; then
-  PKG="$HOME/.platformio/packages/tool-esptoolpy/esptool.py"
+  PKG="$CORE/packages/tool-esptoolpy/esptool.py"
   if [ -f "$PKG" ]; then
     ESPTOOL="$PIOPY $PKG"
   else
@@ -95,6 +110,27 @@ if ! $PIOPY -c "import esptool" >/dev/null 2>&1; then
   fi
 fi
 EXPECT="${TIGERSPOOL_MAC:-$(cat .bench-mac 2>/dev/null || true)}"
+# Lower case, no stray carriage return from an editor on Windows: compared as
+# text with what esptool prints.
+EXPECT="$(printf '%s' "$EXPECT" | tr -d '\r\n ' | tr 'A-F' 'a-f')"
+
+# Where boards can be. macOS and Linux name them in /dev. Windows calls every
+# port COM<n>, so PlatformIO is asked, and only Espressif's own USB (VID 303A,
+# which this board's native USB reports) is kept.
+serial_ports() {
+  local p
+  for p in /dev/cu.usbmodem* /dev/ttyUSB* /dev/ttyACM*; do [ -e "$p" ] && echo "$p"; done
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+      { (cd firmware && pio device list --serial --json-output 2>/dev/null) \
+          | "$PIOPY" -c 'import json, sys
+for d in json.load(sys.stdin):
+    if "303A" in d.get("hwid", "").upper():
+        print(d["port"])' | tr -d '\r'; } || true ;;
+  esac
+}
+found=()
+while IFS= read -r p; do [ -n "$p" ] && found+=("$p"); done < <(serial_ports)
 
 # A port that does not answer is not an error: it is a port that is not an
 # ESP32, or one another program is holding. It has to come back EMPTY and let
@@ -107,15 +143,17 @@ EXPECT="${TIGERSPOOL_MAC:-$(cat .bench-mac 2>/dev/null || true)}"
 # in a row were believed to have landed and had not; the board kept running
 # older firmware and every measurement taken from it was about that older
 # firmware. A tool that fails silently is worse than one that fails.
-mac_of() { { $ESPTOOL --port "$1" --no-stub read_mac 2>/dev/null \
+mac_of() { { $ESPTOOL --port "$1" --no-stub read_mac 2>/dev/null | tr -d '\r' \
              | awk '/^MAC:/ { print tolower($2); exit }'; } || true; }
 
 if [ "$ANY" = 1 ]; then
   echo "== --any: skipping the board check"
 elif [ -z "$EXPECT" ]; then
-  ports=(/dev/cu.usbmodem* /dev/ttyUSB* /dev/ttyACM*)
-  found=(); for p in "${ports[@]}"; do [ -e "$p" ] && found+=("$p"); done
-  if [ "${#found[@]}" -eq 1 ]; then
+  if [ "${#found[@]}" -eq 0 ]; then
+    echo "error: no board found. Is the USB cable a data cable, and is a serial"
+    echo "       monitor holding the port? Nothing was written."
+    exit 2
+  elif [ "${#found[@]}" -eq 1 ]; then
     m="$(mac_of "${found[0]}")"
     echo "== no .bench-mac yet; one board present: ${found[0]} ($m)"
     echo "   record it so this can never go to the wrong board:"
@@ -129,8 +167,7 @@ elif [ -z "$EXPECT" ]; then
   fi
 else
   match=""
-  for p in /dev/cu.usbmodem* /dev/ttyUSB* /dev/ttyACM*; do
-    [ -e "$p" ] || continue
+  for p in ${found[@]+"${found[@]}"}; do
     m="$(mac_of "$p")"
     echo "== $p is $m"
     [ "$m" = "$EXPECT" ] && match="$p"

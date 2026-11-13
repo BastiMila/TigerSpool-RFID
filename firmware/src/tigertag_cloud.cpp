@@ -1215,7 +1215,69 @@ struct Sent {
     int    printersActive = -1;
     String printerIds;      // joined, for comparison only
     String printersOnline;  // joined, for comparison only
+    String slots;           // joined, for comparison only
 } g_sent;
+
+// The slot book read back on a full beat, and the clock learnt from commits.
+ttcloud::SlotPub g_restored[ttcloud::MAX_SLOTPUB];
+int              g_restoredN = 0;
+volatile bool    g_restoredReady = false;
+volatile int64_t g_epochBase = 0;        // epoch ms at millis() == 0; 0 = unknown
+
+String joinSlots(const ttcloud::Presence& p) {
+    String j;
+    for (int i = 0; i < p.slotCount; i++) {
+        const ttcloud::SlotPub& s = p.slots[i];
+        j += s.printerId; j += '/'; j += s.key; j += '=';
+        if (!s.cleared) { j += s.uid; j += ','; j += s.material; j += ','; j += s.color;
+                          j += ','; j += String((long long)s.setAtMs); }
+        j += ';';
+    }
+    return j;
+}
+
+// "2026-11-13T12:34:56.123456Z" to ms since epoch; 0 when it does not parse.
+int64_t rfc3339Ms(const char* t) {
+    int Y, M, D, h, m, s; char tail[16] = {0};
+    if (!t || sscanf(t, "%4d-%2d-%2dT%2d:%2d:%2d%15s", &Y, &M, &D, &h, &m, &s, tail) < 6) return 0;
+    int ms = 0;
+    if (tail[0] == '.') {
+        // The first three digits are the milliseconds; fewer are padded.
+        const size_t nd = strspn(tail + 1, "0123456789");
+        for (size_t k = 0; k < 3; k++) ms = ms * 10 + (k < nd ? tail[1 + k] - '0' : 0);
+    }
+    // Days from civil, Howard Hinnant's algorithm.
+    Y -= M <= 2;
+    const int era = (Y >= 0 ? Y : Y - 399) / 400;
+    const unsigned yoe = (unsigned)(Y - era * 400);
+    const unsigned doy = (153 * (M + (M > 2 ? -3 : 9)) + 2) / 5 + D - 1;
+    const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    const int64_t days = (int64_t)era * 146097 + (int64_t)doe - 719468;
+    return ((days * 86400 + h * 3600 + m * 60 + s) * 1000) + ms;
+}
+
+void readSlots(JsonObjectConst fields) {
+    g_restoredN = 0;
+    JsonObjectConst sm = fields["slots"]["mapValue"]["fields"];
+    for (JsonPairConst pp : sm) {
+        JsonObjectConst pm = pp.value()["mapValue"]["fields"];
+        for (JsonPairConst kp : pm) {
+            if (g_restoredN >= ttcloud::MAX_SLOTPUB) return;
+            ttcloud::SlotPub& e = g_restored[g_restoredN++];
+            e = ttcloud::SlotPub();
+            e.printerId = pp.key().c_str();
+            e.key = kp.key().c_str();
+            JsonObjectConst f = kp.value()["mapValue"]["fields"];
+            e.cleared = f.isNull();
+            if (e.cleared) continue;
+            e.uid      = f["uid"]["stringValue"] | "";
+            e.material = f["material"]["stringValue"] | "";
+            e.color    = f["color"]["stringValue"] | "";
+            e.setAtMs  = strtoll(f["set_at"]["integerValue"] | "0", nullptr, 10);
+            if (e.uid.isEmpty()) e.cleared = true;
+        }
+    }
+}
 
 String joinIds(const ttcloud::Presence& p) {
     String j;
@@ -1253,14 +1315,19 @@ bool ttcloud::heartbeat(const Presence& p, bool full, String& err) {
     String name = defaultDisplayName();
     if (full) {
         String resp;
-        const int hc = httpsGET(base + "/" + path + "?mask.fieldPaths=display_name",
-                                resp, g_idToken.c_str());
+        const int hc = httpsGET(base + "/" + path + "?mask.fieldPaths=display_name"
+                                "&mask.fieldPaths=slots", resp, g_idToken.c_str());
         if (hc == 200) {
             JsonDocument r;
             if (!deserializeJson(r, resp)) {
                 const String cur = r["fields"]["display_name"]["stringValue"] | "";
                 if (cur.length()) name = cur;
+                // What an earlier boot published, so this one carries it on
+                // rather than wiping it with an empty book.
+                if (!g_restoredReady) { readSlots(r["fields"]); g_restoredReady = true; }
             }
+        } else if (hc == 404 && !g_restoredReady) {
+            g_restoredN = 0; g_restoredReady = true;     // first beat ever: nothing to carry on
         }
         // 404 is the ordinary first beat: the document does not exist yet.
     }
@@ -1340,6 +1407,28 @@ bool ttcloud::heartbeat(const Presence& p, bool full, String& err) {
         mask.add("printers_online");
     }
 
+    // The slot book, whole, when it changed: the map replaces the last one, and
+    // a slot that is no longer what was sent is an explicit null, never left
+    // out - leaving it out would keep the old spool there for ever.
+    const String slotsJoin = p.slotsReady ? joinSlots(p) : String();
+    const bool slotsChanged = p.slotsReady && (!g_sent.have || slotsJoin != g_sent.slots);
+    if (slotsChanged) {
+        JsonObject sm = f["slots"]["mapValue"]["fields"].to<JsonObject>();
+        for (int i = 0; i < p.slotCount; i++) {
+            const ttcloud::SlotPub& s = p.slots[i];
+            JsonObject pm = sm[s.printerId]["mapValue"]["fields"].isNull()
+                          ? sm[s.printerId]["mapValue"]["fields"].to<JsonObject>()
+                          : sm[s.printerId]["mapValue"]["fields"].as<JsonObject>();
+            if (s.cleared) { pm[s.key]["nullValue"] = "NULL_VALUE"; continue; }
+            JsonObject e = pm[s.key]["mapValue"]["fields"].to<JsonObject>();
+            e["uid"]["stringValue"]      = s.uid;
+            e["material"]["stringValue"] = s.material;
+            e["color"]["stringValue"]    = s.color;
+            if (s.setAtMs > 0) e["set_at"]["integerValue"] = String((long long)s.setAtMs);
+        }
+        mask.add("slots");
+    }
+
     // The server stamps the time, always. "Is this device online" is then
     // `now - last_heartbeat_at < 2 * interval` decided by the server's own
     // clock, which is true whatever this box believes the time to be.
@@ -1364,6 +1453,17 @@ bool ttcloud::heartbeat(const Presence& p, bool full, String& err) {
         return false;
     }
 
+    // The server's time of this commit is the one clock the board can trust;
+    // set_at in the slot book is taken from it.
+    {
+        JsonDocument cr;
+        if (!deserializeJson(cr, resp)) {
+            const int64_t t = rfc3339Ms(cr["commitTime"] | (const char*)nullptr);
+            if (t > 0) g_epochBase = t - (int64_t)millis();
+        }
+    }
+    if (slotsChanged) Serial.printf("[presence] slots: %s\n", slotsJoin.c_str());
+
     // Logged when it changes, never on the ordinary beat: this is the one
     // field whose emptiness is invisible from the device - it publishes fine
     // and says nothing - so it gets a line the day it moves.
@@ -1385,6 +1485,7 @@ bool ttcloud::heartbeat(const Presence& p, bool full, String& err) {
     g_sent.printersActive = p.printersActive;
     g_sent.printerIds = ids;
     g_sent.printersOnline = online;
+    if (p.slotsReady) g_sent.slots = slotsJoin;
     return true;
 }
 
@@ -1399,6 +1500,7 @@ volatile bool       g_hbDone = false;
 ttcloud::Presence   g_hbP;
 String              g_hbIds[MAX_PRINTERS];
 bool                g_hbUp[MAX_PRINTERS];
+ttcloud::SlotPub    g_hbSlots[ttcloud::MAX_SLOTPUB];
 bool                g_hbFull = false, g_hbOk = false;
 String              g_hbErr;
 
@@ -1424,6 +1526,10 @@ bool ttcloud::startAsyncHeartbeat(const Presence& p, bool full) {
     for (int i = 0; i < n; i++) g_hbUp[i]  = p.printerUp ? p.printerUp[i] : false;
     g_hbP.printerIds = g_hbIds;
     g_hbP.printerUp  = g_hbUp;
+    const int ns = p.slotCount < ttcloud::MAX_SLOTPUB ? p.slotCount : ttcloud::MAX_SLOTPUB;
+    for (int i = 0; i < ns; i++) g_hbSlots[i] = p.slots[i];
+    g_hbP.slots = g_hbSlots;
+    g_hbP.slotCount = ns;
     g_hbP.printerIdCount = n;
     g_hbFull = full;
     g_hbBusy = true;
@@ -1437,6 +1543,20 @@ bool ttcloud::startAsyncHeartbeat(const Presence& p, bool full) {
 }
 
 bool ttcloud::heartbeatBusy() { return g_hbBusy; }
+
+bool ttcloud::takeRestoredSlots(SlotPub* out, int max, int& n) {
+    n = 0;
+    if (!g_restoredReady || g_hbBusy) return false;
+    static bool taken = false;
+    if (taken) return false;
+    taken = true;
+    for (int i = 0; i < g_restoredN && n < max; i++) out[n++] = g_restored[i];
+    return true;
+}
+
+int64_t ttcloud::epochMs() {
+    return g_epochBase ? g_epochBase + (int64_t)millis() : 0;
+}
 
 bool ttcloud::takeHeartbeat(bool& ok, bool& full, String& err) {
     if (!g_hbDone) return false;

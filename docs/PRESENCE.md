@@ -98,6 +98,48 @@ can differ (a printer reachable over the cloud from Studio and not from the
 box's network, or the reverse). Sent when it moves, always as an array, empty
 included: an omitted field would leave the last printer that went down green.
 
+| `slots` | map - which spool this box put in which printer slot; see below |
+
+### `slots`: which spool is in which slot
+
+The printer reports a slot's material and a colour rounded to its own palette,
+never which spool it is. Only this box knows that, because it read the chip
+before setting the slot. `slots` publishes it, for a slicer plugin that wants
+to pick the right spool for each slot:
+
+```
+slots: {                                   // key: a printer id from printer_ids
+  "<printerId>": {
+    "1": {"uid": "5301E4BA640001", "material": "PLA",
+          "color": "#5A6D30", "set_at": 1794577283000},
+    "3": null                              // emptied, or changed at the printer
+  }
+}
+```
+
+- **The slot key is the printer's own number** (`PrinterBackend::slotKey`):
+  FlashForge's `slotId` (1-4), an AFC lane's number (from 1), a Happy Hare
+  gate (from 0). Other brands publish nothing until their numbering is agreed.
+- **`uid`** is the inventory document id, upper-case hex - one of the two chips
+  of a twin-tagged spool.
+- **`material` and `color` are what the printer reported** a few seconds after
+  the send, not what was sent: a reader compares them with what the printer
+  reports now, and they only match if both come from the printer.
+- **`set_at`** is ms since epoch, taken from the server's `commitTime` of an
+  earlier beat (this board has no clock). Left out until one beat has gone
+  through.
+- **A slot that is emptied, or reported with another material or colour, turns
+  into an explicit `null`** - judged only once the link has been up for 15 s,
+  because a backend reports its slots as unknown straight after a reconnect. So
+  is a slot that never reports after a send (30 s), and a slot while a new send
+  is still waiting for the printer.
+- A spool swapped for one of the **same material and colour** without a scan is
+  not noticed. Nothing the printer reports tells the two apart.
+- **The whole map is written when it changes**, with `slots` in the mask. It is
+  read back on the first full beat after boot and carried on; until that read has
+  answered it is not written at all, so a booting box never wipes it.
+- The book lives in RAM, at most 32 slots across all printers.
+
 `printer_ids` is what lets Studio put the right TigerSpool next to the right
 printer. The ids come from the account import and are held **in RAM only**, so
 a freshly booted device publishes an empty array until its first sync of the

@@ -21,6 +21,8 @@ public:
     bool firstIsExternal() override { return false; }
     int  slotCount() override { return 4; }        // material station, 1A..1D
     const char* slotLabel(int i) override;
+    // slotInfos[].slotId, 1-based: slots_[id - 1] in refresh's parse.
+    String slotKey(int i) override { return (i >= 0 && i < 4) ? String(i + 1) : String(); }
     const SlotState& slot(int i) override;
     bool assign(int i, const TagInfo& t) override;
     String status() override;

@@ -18,7 +18,27 @@ message, and reset it to this header.
 
 ## Unreleased
 
+### Fixed
+
+- `scripts/flash.sh` on Windows (Git Bash) stopped before writing anything, every
+  time: it looked for PlatformIO's Python in `penv/bin` (Windows has
+  `penv/Scripts`), for its packages under `~/.platformio` even with
+  `PLATFORMIO_CORE_DIR` set, and for boards only under `/dev`, so a board on
+  COM3 was never found and the error claimed more than one was plugged in. It
+  now finds `pio` and Python in either place, honours `PLATFORMIO_CORE_DIR`,
+  asks PlatformIO for COM ports with Espressif's USB id (303A), strips the
+  carriage returns Windows adds, and says "no board found" when none is.
+
 ### Added
+
+- A slot book on the presence document: `slots` in `users/{uid}/tigerspools/{mac}`
+  says which spool (inventory uid) this box put in which printer slot, with the
+  material and colour the printer reported and `set_at` in ms since epoch (from
+  the server's `commitTime`; the board has no clock). A slot emptied or changed
+  at the printer becomes an explicit null; the map is read back after boot and
+  carried on. Keys are the printer's own slot numbers (`PrinterBackend::slotKey`):
+  FlashForge and Klipper (AFC lanes, Happy Hare gates) for now. For the
+  TigerTag OrcaSlicer plugin, which maps Orca's filament slots to spools.
 
 - Klipper with AFC: the spool's remaining weight is sent with the lane, with
   AFC's own `SET_WEIGHT`, so still nothing to install on the printer. Where it

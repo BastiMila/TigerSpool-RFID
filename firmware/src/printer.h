@@ -153,6 +153,13 @@ public:
     // A print has just ended (finished or cancelled) since the last call:
     // the moment the weights are worth reporting without being asked.
     virtual bool takePrintEnded() { return false; }
+
+    // The slot's number as the PRINTER counts it, for the slot book in the
+    // account (`slots` in docs/PRESENCE.md): FlashForge's slotId, an AFC lane's
+    // 1-based number, a Happy Hare gate. Never a label, which can be translated.
+    // Empty where no numbering has been agreed yet - such a slot is not
+    // published.
+    virtual String slotKey(int i) { (void)i; return String(); }
     // Where the next assign() takes the spool's weight from: the account (the
     // figure a TigerScale keeps up to date) or the chip (what was written on
     // it, but needs no network). The user's choice, held by main.cpp and handed
