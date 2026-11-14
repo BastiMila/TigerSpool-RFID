@@ -140,6 +140,55 @@ slots: {                                   // key: a printer id from printer_ids
   answered it is not written at all, so a booting box never wipes it.
 - The book lives in RAM, at most 32 slots across all printers.
 
+### `load_requests`: what a slicer wants loaded
+
+The one field in this document the device **reads and never writes**. A slicer
+plugin, signed in as the same user, puts a job's spools here so that the box in
+front of the printer can say which spool goes into which slot and where it is
+stored. It lives in this document, not a collection of its own, because this
+path is already allowed by the account's rules; a new collection would need a
+rule of its own first.
+
+```
+load_requests: {                           // key: a printer id from printer_ids
+  "<printerId>": {
+    "source": "orcaslicer",
+    "requested_at": 1794577283000,         // ms since epoch
+    "job": "Plate 1",
+    "slots": {
+      "2": {"uids": ["5301E4BA640001", "<twin>"], "uid": "5301E4BA640001",
+            "material": "PLA", "color": "#5A6D30", "grams_needed": 34.5,
+            "rack": {"id": "...", "name": "Karton Sunlu 250G", "level": 1, "position": 4}},
+      "3": null                            // nothing asked for this slot
+    }
+  }
+}
+```
+
+- **Written by the plugin** with `updateMask: load_requests.<printerId>`, so one
+  printer's request replaces only itself. The beat's own mask never names
+  `load_requests`, so the device does not overwrite it.
+- **The slot keys are the ones in `slots`.** `uids` names both chips of a
+  twin-tagged spool, so a scan of either one matches; a single `uid` is accepted
+  when `uids` is missing.
+- **`rack.level` and `rack.position` count from 0**, and the place is drawn as
+  Tiger Studio draws it: the name, then the level as a letter and the position
+  from 1 - level 1, position 4 is "B5". A name the panel's font cannot draw is
+  left out and the place is shown as "B5" alone, which is why the name comes
+  apart from the numbers rather than as finished text.
+- **Read with the beat**: on the full beat and then every second beat while
+  the screen is on - a minute - as one GET with `mask.fieldPaths=load_requests`
+  on the session the beat already holds. Not read while the screen is off.
+- **A slot's request is done** when the slot book holds, confirmed by the
+  printer, one of the spools it names. Done, or `requested_at` older than 24 h,
+  it is no longer shown. Nothing is written back: the slicer compares its
+  request with `slots`.
+- On the device: the slot grid outlines the wanted slots and says how many; the
+  scan screen for a wanted slot names the material and the place; a send of
+  another spool to that slot goes through, and the result screen says it was
+  not the spool the slicer asked for.
+- At most 32 requested slots across all printers, in RAM.
+
 `printer_ids` is what lets Studio put the right TigerSpool next to the right
 printer. The ids come from the account import and are held **in RAM only**, so
 a freshly booted device publishes an empty array until its first sync of the

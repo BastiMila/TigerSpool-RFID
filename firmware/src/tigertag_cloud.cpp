@@ -1279,6 +1279,49 @@ void readSlots(JsonObjectConst fields) {
     }
 }
 
+// The slicer's load requests, read on the beat. Filled by the beat task and
+// handed over once by takeLoadRequests(), never while a beat is running.
+ttcloud::LoadWant g_lw[ttcloud::MAX_LOADWANT];
+int               g_lwN = 0;
+volatile bool     g_lwReady = false;
+uint32_t          g_lwBeat = 0;          // beats since boot, for the cadence
+
+// load_requests: {printerId: {requested_at, job, slots: {key: {...} | null}}}
+void readLoadRequests(JsonObjectConst fields) {
+    g_lwN = 0;
+    JsonObjectConst lm = fields["load_requests"]["mapValue"]["fields"];
+    for (JsonPairConst pp : lm) {
+        JsonObjectConst rq = pp.value()["mapValue"]["fields"];
+        const int64_t at = fsMillis(rq, "requested_at");
+        JsonObjectConst sm = rq["slots"]["mapValue"]["fields"];
+        for (JsonPairConst kp : sm) {
+            JsonObjectConst f = kp.value()["mapValue"]["fields"];
+            if (f.isNull()) continue;                    // null: nothing asked for this slot
+            if (g_lwN >= ttcloud::MAX_LOADWANT) return;
+            ttcloud::LoadWant& w = g_lw[g_lwN];
+            w = ttcloud::LoadWant();
+            w.printerId = pp.key().c_str();
+            w.key = kp.key().c_str();
+            w.requestedAt = at;
+            int nu = 0;
+            for (JsonVariantConst u : f["uids"]["arrayValue"]["values"].as<JsonArrayConst>())
+                if (nu < 2) w.uids[nu++] = u["stringValue"] | "";
+            if (!nu) w.uids[0] = f["uid"]["stringValue"] | "";
+            for (auto& u : w.uids) u.toUpperCase();
+            if (w.uids[0].isEmpty()) continue;           // no spool named: nothing to compare with
+            w.material = f["material"]["stringValue"] | "";
+            if (!f["grams_needed"].isNull()) w.grams = (int)(fsMillis(f, "grams_needed"));
+            JsonObjectConst rk = f["rack"]["mapValue"]["fields"];
+            if (!rk.isNull()) {
+                w.rackName = rk["name"]["stringValue"] | "";
+                if (!rk["level"].isNull())    w.level    = (int)fsMillis(rk, "level");
+                if (!rk["position"].isNull()) w.position = (int)fsMillis(rk, "position");
+            }
+            g_lwN++;
+        }
+    }
+}
+
 String joinIds(const ttcloud::Presence& p) {
     String j;
     for (int i = 0; i < p.printerIdCount; i++) { j += p.printerIds[i]; j += ','; }
@@ -1313,23 +1356,43 @@ bool ttcloud::heartbeat(const Presence& p, bool full, String& err) {
     // Without this, a name somebody types in Studio lives until the next
     // heartbeat - thirty seconds - and then the device puts its own back.
     String name = defaultDisplayName();
-    if (full) {
+    // The slicer's load requests ride on the same session: read with the full
+    // beat, and on every second beat after it - a minute while awake. Asleep,
+    // nobody is at the box to load a spool.
+    const bool readLoad = full || (!p.screenOff && (g_lwBeat % 2) == 0);
+    g_lwBeat++;
+    if (full || readLoad) {
         String resp;
-        const int hc = httpsGET(base + "/" + path + "?mask.fieldPaths=display_name"
-                                "&mask.fieldPaths=slots", resp, g_idToken.c_str());
+        String url = base + "/" + path + "?mask.fieldPaths=load_requests";
+        if (full) url += "&mask.fieldPaths=display_name&mask.fieldPaths=slots";
+        const int hc = httpsGET(url, resp, g_idToken.c_str());
+        if (hc != 200 && hc != 404)
+            Serial.printf("[presence] read http %d: %.160s\n", hc, resp.c_str());
         if (hc == 200) {
             JsonDocument r;
-            if (!deserializeJson(r, resp)) {
-                const String cur = r["fields"]["display_name"]["stringValue"] | "";
-                if (cur.length()) name = cur;
-                // What an earlier boot published, so this one carries it on
-                // rather than wiping it with an empty book.
-                if (!g_restoredReady) { readSlots(r["fields"]); g_restoredReady = true; }
+            // Firestore wraps every value in mapValue/fields, so a rack inside a
+            // slot inside a request is twenty levels down. ArduinoJson's
+            // default stops at ten and answered TooDeep - which also lost the
+            // slot book this same read carries.
+            const DeserializationError je =
+                deserializeJson(r, resp, DeserializationOption::NestingLimit(32));
+            if (je) Serial.printf("[presence] read: %s (%u bytes)\n", je.c_str(), (unsigned)resp.length());
+            if (!je) {
+                if (full) {
+                    const String cur = r["fields"]["display_name"]["stringValue"] | "";
+                    if (cur.length()) name = cur;
+                    // What an earlier boot published, so this one carries it on
+                    // rather than wiping it with an empty book.
+                    if (!g_restoredReady) { readSlots(r["fields"]); g_restoredReady = true; }
+                }
+                readLoadRequests(r["fields"]);
+                g_lwReady = true;
             }
-        } else if (hc == 404 && !g_restoredReady) {
-            g_restoredN = 0; g_restoredReady = true;     // first beat ever: nothing to carry on
+        } else if (hc == 404) {
+            // 404 is the ordinary first beat: the document does not exist yet.
+            if (full && !g_restoredReady) { g_restoredN = 0; g_restoredReady = true; }
+            g_lwN = 0; g_lwReady = true;
         }
-        // 404 is the ordinary first beat: the document does not exist yet.
     }
 
     JsonDocument d;
@@ -1551,6 +1614,14 @@ bool ttcloud::takeRestoredSlots(SlotPub* out, int max, int& n) {
     if (taken) return false;
     taken = true;
     for (int i = 0; i < g_restoredN && n < max; i++) out[n++] = g_restored[i];
+    return true;
+}
+
+bool ttcloud::takeLoadRequests(LoadWant* out, int max, int& n) {
+    n = 0;
+    if (!g_lwReady || g_hbBusy) return false;
+    g_lwReady = false;
+    for (int i = 0; i < g_lwN && n < max; i++) out[n++] = g_lw[i];
     return true;
 }
 

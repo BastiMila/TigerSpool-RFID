@@ -19,7 +19,15 @@ namespace screen_scan {
 // `note` replaces the instruction once the spool has been read and the send is
 // held up by something the user should know is happening - the weight still
 // being fetched from the account. nullptr for the instruction.
-void showScan(const char* slotLabel, const char* note = nullptr);
+// What a slicer job wants in this slot, drawn under the instruction.
+struct Want {
+    const char* material;     // may be empty
+    const char* rackName;     // may be empty; left out when the font cannot draw it
+    int         level;        // from 0, -1 when the spool has no place
+    int         position;     // from 0
+};
+
+void showScan(const char* slotLabel, const char* note = nullptr, const Want* want = nullptr);
 
 // The success screen confirms what was SENT and names the next step: put the
 // spool in that slot. It deliberately says nothing about what the slot held

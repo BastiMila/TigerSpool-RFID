@@ -43,9 +43,36 @@ void invalidate() { s_which = NONE; s_sig = 0; }
 // proof: the slot grid is only reachable through a printer that answered, and
 // the tap that opened this screen came off that grid. A pair of green dots
 // repeating it spends the top of the panel saying what the user just did.
-void showScan(const char* slotLabel, const char* note) {
+// Every character of `s` has a glyph in `font`. A rack name comes from the
+// account and can be in any script; one the panel cannot draw is left out
+// rather than shown as gaps.
+static bool drawable(const char* s, const lv_font_t* font) {
+    uint32_t i = 0;
+    while (s[i]) {
+        const uint32_t cp = _lv_txt_encoded_next(s, &i);
+        lv_font_glyph_dsc_t g;
+        if (cp >= 0x20 && !lv_font_get_glyph_dsc(font, &g, cp, 0)) return false;
+    }
+    return true;
+}
+
+void showScan(const char* slotLabel, const char* note, const Want* want) {
     lvgl_port::Lock lvglGuard;   // LVGL is not reentrant - see lvgl_port.h
-    uint32_t sig = hashStr(slotLabel) ^ (note ? hashStr(note) * 31u : 0u);
+    // The place as Tiger Studio writes it: the level as a letter, the position
+    // from 1 - "B5" is level 1, position 4.
+    char what[96] = "", place[80] = "";
+    if (want) {
+        snprintf(what, sizeof(what), i18n::T(S_LOAD_WANT), want->material ? want->material : "");
+        if (want->level >= 0 && want->level < 26 && want->position >= 0) {
+            const bool named = want->rackName && want->rackName[0]
+                            && drawable(want->rackName, &font_ui_14);
+            if (named) snprintf(place, sizeof(place), "%s, %c%d", want->rackName,
+                                'A' + want->level, want->position + 1);
+            else       snprintf(place, sizeof(place), "%c%d", 'A' + want->level, want->position + 1);
+        }
+    }
+    uint32_t sig = hashStr(slotLabel) ^ (note ? hashStr(note) * 31u : 0u)
+                 ^ (want ? hashStr(what) * 7u ^ hashStr(place) * 13u : 0u);
     if (s_which == SCAN && sig == s_sig) return;
     s_which = SCAN; s_sig = sig;
 
@@ -65,6 +92,10 @@ void showScan(const char* slotLabel, const char* note) {
     } else {
         frame::caption(i18n::T(S_BRING_TAG), theme::TEXT, &font_ui_14);
         frame::caption(i18n::T(S_TO_READER), theme::TEXT, &font_ui_14);
+    }
+    if (want) {
+        frame::caption(what, theme::WARN, &font_ui_14);
+        if (place[0]) frame::caption(place, theme::WARN, &font_ui_14);
     }
 
     // Tone 0, not the destructive red. Cancelling a scan throws nothing away -

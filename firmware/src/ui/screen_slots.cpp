@@ -157,7 +157,8 @@ void progressText(char* out, size_t n, int tries, int budget, bool fetching) {
 void show(const char* printerName, PrinterBackend* backend,
           int selected, bool readerReady, int link,
           int tries, int budget, bool fetching, bool cloud,
-          bool canPush, const char* pushNote) {
+          bool canPush, const char* pushNote,
+          uint32_t wantMask, const char* wantNote) {
     lvgl_port::Lock lvglGuard;   // LVGL is not reentrant - see lvgl_port.h
     // No backend is a state to DRAW, not a reason to draw nothing. When the
     // link has given up there is no backend at all, and that is exactly the
@@ -166,7 +167,8 @@ void show(const char* printerName, PrinterBackend* backend,
     bool anyKnown = false;
     for (int i = 0; i < n && !anyKnown; i++) anyKnown = backend->slot(i).known;
     const uint32_t sig = signature(backend, n, selected, link) ^ (cloud ? 0x5A5Au : 0u)
-                       ^ (canPush ? 0xA5A50000u : 0u);
+                       ^ (canPush ? 0xA5A50000u : 0u) ^ (wantMask * 2654435761u)
+                       ^ (wantNote ? (uint32_t)strlen(wantNote) << 20 : 0u);
     // Nothing has changed: leave the screen alone. The header was built with
     // this same `link`, so its dot and its retry button are already right -
     // rebuilding them here once per frame stacked a fresh button on the old
@@ -401,6 +403,12 @@ void show(const char* printerName, PrinterBackend* backend,
             lv_obj_set_style_outline_width(cell, 2, 0);
             lv_obj_set_style_outline_pad(cell, 2, 0);
             lv_obj_set_style_outline_color(cell, lv_color_hex(theme::ACCENT), 0);
+        } else if (i < 32 && (wantMask >> i) & 1u) {
+            // A slot a slicer job wants loaded: the line under the grid says
+            // what the mark means.
+            lv_obj_set_style_outline_width(cell, 2, 0);
+            lv_obj_set_style_outline_pad(cell, 2, 0);
+            lv_obj_set_style_outline_color(cell, lv_color_hex(theme::WARN), 0);
         }
 
         // Slot name above, the colour block with its material written inside,
@@ -514,6 +522,8 @@ void show(const char* printerName, PrinterBackend* backend,
     // connected to it, and "looking for printers" would be answering a
     // question nobody asked.
     if (n == 0 && !cloud) frame::caption(i18n::T(S_FIND_PRINTERS), theme::TEXT_DIM);
+
+    if (wantNote && n > 0) frame::caption(wantNote, theme::WARN);
 
     if (canPush && n > 0) {
         frame::button(body, i18n::T(S_PUSH_WEIGHTS), 0, onPush);

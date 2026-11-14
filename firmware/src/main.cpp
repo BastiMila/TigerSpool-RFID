@@ -144,6 +144,7 @@ int     selSlot = -1;
 TagInfo tag;
 bool    sendOk = false;
 bool    sendWeightKept = false;   // sent, but the slot's weight was left as it was
+bool    sendWrongSpool = false;   // sent, to a slot a slicer job wanted another spool in
 int     sendGrams = -1;           // the weight that went with it, -1 for none
 String  resultMsg;
 uint32_t stateSince = 0;
@@ -1713,7 +1714,13 @@ static BookEntry* bookEntry(const String& pid, const String& key, bool create) {
 static void bookOnSent(int printerIdx, PrinterBackend* be, int slot, const String& uid) {
     if (!be) return;
     const String pid = ttcloud::printerDocId(printerIdx), key = be->slotKey(slot);
-    if (pid.isEmpty() || key.isEmpty() || uid.isEmpty()) return;
+    // Said out loud: a send that leaves nothing in the book is otherwise
+    // invisible - the printer took the spool, and `slots` just never names it.
+    if (pid.isEmpty() || key.isEmpty() || uid.isEmpty()) {
+        Serial.printf("[slots] printer %d slot %d not booked: id='%s' key='%s' uid='%s'\n",
+                      printerIdx, slot, pid.c_str(), key.c_str(), uid.c_str());
+        return;
+    }
     BookEntry* e = bookEntry(pid, key, true);
     e->uid = uid; e->uid.toUpperCase();
     e->st = 0; e->at = millis(); e->setAt = 0; e->mat = "";
@@ -1767,6 +1774,39 @@ static void slotBookTick() {
     if (changed) presenceForce = true;
 }
 
+// ---- load requests: what a slicer asked to have loaded ---------------------
+//
+// Read from this device's own presence document with the beat (see
+// ttcloud::takeLoadRequests). A slot's request is done when the slot book
+// holds, LIVE, one of the spools it names; done or older than a day, it is not
+// shown. Nothing is written back: the slicer reads `slots` and compares.
+static ttcloud::LoadWant wants[ttcloud::MAX_LOADWANT];
+static int               nWants = 0;
+static const int64_t     WANT_MAX_AGE_MS = 24LL * 3600 * 1000;
+
+static bool wantNames(const ttcloud::LoadWant& w, String uid) {
+    uid.toUpperCase();
+    return uid.length() && (uid == w.uids[0] || uid == w.uids[1]);
+}
+
+static const ttcloud::LoadWant* wantFor(int printerIdx, PrinterBackend* be, int slot) {
+    if (!be || slot < 0) return nullptr;
+    const String pid = ttcloud::printerDocId(printerIdx), key = be->slotKey(slot);
+    if (pid.isEmpty() || key.isEmpty()) return nullptr;
+    const int64_t now = ttcloud::epochMs();
+    for (int i = 0; i < nWants; i++) {
+        const ttcloud::LoadWant& w = wants[i];
+        if (w.printerId != pid || w.key != key) continue;
+        // No clock yet: shown rather than hidden, a fresh boot is the moment
+        // somebody loads what they just sliced.
+        if (now && w.requestedAt && now - w.requestedAt > WANT_MAX_AGE_MS) return nullptr;
+        BookEntry* e = bookEntry(pid, key, false);
+        if (e && e->st == 1 && wantNames(w, e->uid)) return nullptr;   // already loaded
+        return &w;
+    }
+    return nullptr;
+}
+
 static void presenceTick() {
     // The outcome of the last beat, sent from its own task - see
     // ttcloud::startAsyncHeartbeat(). Handled here, on the loop that owns the
@@ -1781,6 +1821,28 @@ static void presenceTick() {
                 // A failed full beat STAYS full: half a document in Studio is
                 // worse than a document that appears thirty seconds later.
                 if (full) presenceFull = false;
+                {
+                    static int lastN = -1;
+                    if (ttcloud::takeLoadRequests(wants, ttcloud::MAX_LOADWANT, nWants)
+                            && nWants != lastN) {
+                        lastN = nWants;
+                        Serial.printf("[load] %d slot(s) requested by a slicer\n", nWants);
+                        // Each with its age: a request hidden as stale or as
+                        // already loaded is otherwise indistinguishable from
+                        // one that never arrived.
+                        const int64_t now = ttcloud::epochMs();
+                        for (int i = 0; i < nWants; i++) {
+                            BookEntry* e = bookEntry(wants[i].printerId, wants[i].key, false);
+                            Serial.printf("[load]   %s/%s wants %s, %lld s old%s\n",
+                                          wants[i].printerId.c_str(), wants[i].key.c_str(),
+                                          wants[i].uids[0].c_str(),
+                                          (long long)(now && wants[i].requestedAt
+                                                      ? (now - wants[i].requestedAt) / 1000 : -1),
+                                          e && e->st == 1 && wantNames(wants[i], e->uid)
+                                              ? " - already loaded" : "");
+                        }
+                    }
+                }
                 if (full && !bookRestored) {
                     static ttcloud::SlotPub got[ttcloud::MAX_SLOTPUB];
                     int n = 0;
@@ -3270,11 +3332,18 @@ void loop() {
         const bool canPush = backend && ttcloud::haveSession()
                           && printers[selectedPrinter].type == PT_KLIPPER
                           && backend->spoolLevels(probe, 1) > 0;
+        uint32_t wantMask = 0; int wantN = 0;
+        if (backend && !readOnly(printers[selectedPrinter]))
+            for (int i = 0; i < backend->slotCount() && i < 32; i++)
+                if (wantFor(selectedPrinter, backend, i)) { wantMask |= 1u << i; wantN++; }
+        char wantNote[96] = "";
+        if (wantN) snprintf(wantNote, sizeof(wantNote), i18n::T(S_LOAD_JOB), wantN);
         screen_slots::show(printers[selectedPrinter].name.c_str(), backend,
                            selSlot, nfcReady, (int)linkState,
                            linkTries, linkBudget, ttcloud::asyncBusy(),
                            readOnly(printers[selectedPrinter]),
-                           canPush, pushNote.length() ? pushNote.c_str() : nullptr);
+                           canPush, pushNote.length() ? pushNote.c_str() : nullptr,
+                           wantMask, wantN ? wantNote : nullptr);
         lvgl_port::loop();
 
         if (screen_slots::takeCancelLink()) {
@@ -3320,7 +3389,10 @@ void loop() {
     }
 
     case ST_SCAN: {
-        screen_scan::showScan(backend ? backend->slotLabel(selSlot) : "?");
+        const ttcloud::LoadWant* lw = wantFor(selectedPrinter, backend, selSlot);
+        screen_scan::Want sw;
+        if (lw) sw = { lw->material.c_str(), lw->rackName.c_str(), lw->level, lw->position };
+        screen_scan::showScan(backend ? backend->slotLabel(selSlot) : "?", nullptr, lw ? &sw : nullptr);
         lvgl_port::loop();
 
         if (screen_scan::takeCancel()) {
@@ -3405,7 +3477,12 @@ void loop() {
         const char* note = nullptr;
         if (weightRetry) note = i18n::T(S_WEIGHT_RETRY);
         else if (weightWait && millis() - stateSince > 500) note = i18n::T(S_WEIGHT_WAIT);
-        screen_scan::showScan(backend ? backend->slotLabel(selSlot) : "?", note);
+        // The same screen as the scan, the wanted spool included: a different
+        // signature would rebuild it for the second the write takes.
+        const ttcloud::LoadWant* lw = wantFor(selectedPrinter, backend, selSlot);
+        screen_scan::Want sw;
+        if (lw) sw = { lw->material.c_str(), lw->rackName.c_str(), lw->level, lw->position };
+        screen_scan::showScan(backend ? backend->slotLabel(selSlot) : "?", note, lw ? &sw : nullptr);
         BENCH_MARK("send:draw");
         lvgl_port::loop();
         BENCH_MARK("send:lvgl");
@@ -3430,6 +3507,13 @@ void loop() {
             // state, not from the backend, whose next assign would change it.
             sendWeightKept = sendOk && backend->weightSkipped();
             sendGrams = sendOk ? backend->sentGrams() : -1;
+            {
+                const ttcloud::LoadWant* lw = wantFor(selectedPrinter, backend, selSlot);
+                sendWrongSpool = sendOk && lw && !wantNames(*lw, tag.uid);
+                if (sendWrongSpool)
+                    Serial.printf("[load] %s sent to slot %d, the job wanted %s\n",
+                                  tag.uid.c_str(), selSlot, lw->uids[0].c_str());
+            }
             BENCH_MARK("send:assign");
             char m[48];
             if (sendOk) snprintf(m, sizeof(m), i18n::T(S_UPDATED), backend->slotLabel(selSlot));
@@ -3462,7 +3546,8 @@ void loop() {
         screen_scan::showResult(backend ? backend->slotLabel(selSlot) : "?",
                                 sendOk, resultMsg.c_str(), tag,
                                 since >= RESULT_MS ? 0 : RESULT_MS - since,
-                                sendWeightKept ? i18n::T(S_WEIGHT_KEPT) : nullptr, sendGrams);
+                                sendWrongSpool ? i18n::T(S_LOAD_WRONG)
+                                : sendWeightKept ? i18n::T(S_WEIGHT_KEPT) : nullptr, sendGrams);
         BENCH_MARK("result:draw");
         lvgl_port::loop();
         BENCH_MARK("result:lvgl");

@@ -20,6 +20,13 @@ message, and reset it to this header.
 
 ### Fixed
 
+- The slot book was never carried on after a reboot: the presence document is
+  read back with ArduinoJson, whose default nesting limit of ten is less than
+  Firestore's `mapValue`/`fields` wrapping of `slots` needs, so the read failed
+  with `TooDeep` and said nothing. Read with a limit of 32 now, which the load
+  requests (a rack inside a slot inside a request) need too; a failed read is
+  logged (`[presence] read ...`).
+
 - `scripts/flash.sh` on Windows (Git Bash) stopped before writing anything, every
   time: it looked for PlatformIO's Python in `penv/bin` (Windows has
   `penv/Scripts`), for its packages under `~/.platformio` even with
@@ -30,6 +37,22 @@ message, and reset it to this header.
   carriage returns Windows adds, and says "no board found" when none is.
 
 ### Added
+
+- Load requests from a slicer: a plugin writes `load_requests` into this box's
+  presence document (per printer: per slot the spool's uids, material and rack
+  place), and the box shows them - the wanted slots outlined in the grid with
+  a count under it, the material and the place ("Karton Sunlu 250G, B5", the
+  rack name left out when the font cannot draw it) on the scan screen, and
+  "Not the spool the slicer asked for" on the result when another spool was
+  sent to a wanted slot. Read with the beat, every second beat while the screen
+  is on; a request is done when `slots` holds one of its spools, and ignored
+  after 24 h. In the presence document rather than a collection of its own,
+  because that path is already allowed by the account's rules. The device
+  never writes it. Preview: `?preview=scanwant`.
+
+- `bookOnSent` logs why a send left nothing in the slot book (no account id
+  for the printer yet, no slot key, no uid) - before, `slots` just stayed
+  silent about that slot.
 
 - A slot book on the presence document: `slots` in `users/{uid}/tigerspools/{mac}`
   says which spool (inventory uid) this box put in which printer slot, with the

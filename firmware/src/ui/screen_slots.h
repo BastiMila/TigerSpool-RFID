@@ -26,7 +26,8 @@ namespace screen_slots {
 void show(const char* printerName, PrinterBackend* backend,
           int selected, bool readerReady, int link,
           int tries, int budget, bool fetching, bool cloud,
-          bool canPush = false, const char* pushNote = nullptr);
+          bool canPush = false, const char* pushNote = nullptr,
+          uint32_t wantMask = 0, const char* wantNote = nullptr);
 // The answer to a tap on a cloud printer's slot: what it is, and the one thing
 // that would change it. Its own screen rather than a line on the grid - a
 // warning that is always on display stops being read.

@@ -175,6 +175,26 @@ namespace ttcloud {
     // clock of its own.
     int64_t epochMs();
 
+    // One slot of a load request: a slicer plugin asking for a spool in a
+    // printer slot, written into this device's own presence document as
+    // `load_requests` (docs/PRESENCE.md). Read only; this device never writes it.
+    struct LoadWant {
+        String  printerId;       // as in printer_ids
+        String  key;             // PrinterBackend::slotKey
+        String  uids[2];         // inventory id, and its twin's when it has one
+        String  material;
+        String  rackName;        // empty when the spool has no place
+        int     level = -1;      // from 0, drawn as a letter
+        int     position = -1;   // from 0, drawn from 1
+        int     grams = -1;      // what the job needs, -1 when not said
+        int64_t requestedAt = 0; // ms since epoch
+    };
+    constexpr int MAX_LOADWANT = 32;
+
+    // The requests as the last read found them; true once per read that
+    // answered (no field at all is an answer: nothing is requested).
+    bool takeLoadRequests(LoadWant* out, int max, int& n);
+
     // One Firestore commit, blocking, about a second. `full` also writes the
     // identity block and reads display_name before writing it, so a name typed
     // in Studio is never trampled. Fields outside the mask are untouched.
