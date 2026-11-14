@@ -207,7 +207,7 @@ enum StrId : uint8_t {
     S_PUSH_BUSY,
     S_PUSH_DONE,
     S_PUSH_FAIL,
-    S_LOAD_WANT,
+    S_LOAD_NOTAG,
     S_LOAD_JOB,
     S_LOAD_WRONG,
     S_COUNT

@@ -1655,8 +1655,9 @@ static void weightPushTick() {
         pushNote = t; pushNoteAt = millis();
         Serial.printf("[push] done: %d written, %d skipped, %d failed\n", wr, sk, fa);
     }
-    // The note says what the last push did, for a minute.
-    if (pushNote.length() && !ttcloud::weightPushBusy() && millis() - pushNoteAt > 60000UL)
+    // The note says what the last push did, for three seconds: long enough to
+    // read a count, and gone before it reads as the state of the grid.
+    if (pushNote.length() && !ttcloud::weightPushBusy() && millis() - pushNoteAt > 3000UL)
         pushNote = "";
 
     // A print that ended on any Klipper link.
@@ -1910,6 +1911,11 @@ static void presenceTick() {
     p.onUsb          = !battery::present() || battery::charging();
     p.screenOff      = lvgl_port::asleep();
     p.usedNow        = presenceUsed;
+    // Load requests are only shown on a printer's slots and the scan that
+    // follows, so they are only read there: one more round trip per beat is
+    // what a box on a weak network can least afford.
+    p.wantLoad       = state == ST_GRID || state == ST_SCAN || state == ST_SENDING
+                    || state == ST_RESULT;
 
     static String ids[MAX_PRINTERS];
     static bool   up[MAX_PRINTERS];
@@ -3391,7 +3397,8 @@ void loop() {
     case ST_SCAN: {
         const ttcloud::LoadWant* lw = wantFor(selectedPrinter, backend, selSlot);
         screen_scan::Want sw;
-        if (lw) sw = { lw->material.c_str(), lw->rackName.c_str(), lw->level, lw->position };
+        if (lw) sw = { lw->material.c_str(), lw->brand.c_str(), lw->rgb, lw->noChip,
+                      lw->rackName.c_str(), lw->level, lw->position };
         screen_scan::showScan(backend ? backend->slotLabel(selSlot) : "?", nullptr, lw ? &sw : nullptr);
         lvgl_port::loop();
 
@@ -3481,7 +3488,8 @@ void loop() {
         // signature would rebuild it for the second the write takes.
         const ttcloud::LoadWant* lw = wantFor(selectedPrinter, backend, selSlot);
         screen_scan::Want sw;
-        if (lw) sw = { lw->material.c_str(), lw->rackName.c_str(), lw->level, lw->position };
+        if (lw) sw = { lw->material.c_str(), lw->brand.c_str(), lw->rgb, lw->noChip,
+                      lw->rackName.c_str(), lw->level, lw->position };
         screen_scan::showScan(backend ? backend->slotLabel(selSlot) : "?", note, lw ? &sw : nullptr);
         BENCH_MARK("send:draw");
         lvgl_port::loop();
@@ -3509,7 +3517,9 @@ void loop() {
             sendGrams = sendOk ? backend->sentGrams() : -1;
             {
                 const ttcloud::LoadWant* lw = wantFor(selectedPrinter, backend, selSlot);
-                sendWrongSpool = sendOk && lw && !wantNames(*lw, tag.uid);
+                // A spool with no chip yet cannot be matched by any scan, so
+                // no scan is called the wrong one.
+                sendWrongSpool = sendOk && lw && !lw->noChip && !wantNames(*lw, tag.uid);
                 if (sendWrongSpool)
                     Serial.printf("[load] %s sent to slot %d, the job wanted %s\n",
                                   tag.uid.c_str(), selSlot, lw->uids[0].c_str());

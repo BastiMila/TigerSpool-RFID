@@ -1284,7 +1284,6 @@ void readSlots(JsonObjectConst fields) {
 ttcloud::LoadWant g_lw[ttcloud::MAX_LOADWANT];
 int               g_lwN = 0;
 volatile bool     g_lwReady = false;
-uint32_t          g_lwBeat = 0;          // beats since boot, for the cadence
 
 // load_requests: {printerId: {requested_at, job, slots: {key: {...} | null}}}
 void readLoadRequests(JsonObjectConst fields) {
@@ -1310,6 +1309,21 @@ void readLoadRequests(JsonObjectConst fields) {
             for (auto& u : w.uids) u.toUpperCase();
             if (w.uids[0].isEmpty()) continue;           // no spool named: nothing to compare with
             w.material = f["material"]["stringValue"] | "";
+            w.brand    = f["brand"]["stringValue"] | "";
+            {
+                const char* c = f["color"]["stringValue"] | "";
+                unsigned v = 0;
+                if (c[0] == '#' && strlen(c) >= 7 && sscanf(c + 1, "%6x", &v) == 1) w.rgb = (int32_t)v;
+            }
+            // A chip uid is hex; an inventory entry made without a chip has an
+            // id like TIGERDATA_..., which no scan can ever match.
+            w.noChip = true;
+            for (const auto& u : w.uids) {
+                if (u.isEmpty()) continue;
+                bool hex = true;
+                for (size_t k = 0; k < u.length() && hex; k++) hex = isxdigit((unsigned char)u[k]);
+                if (hex) { w.noChip = false; break; }
+            }
             if (!f["grams_needed"].isNull()) w.grams = (int)(fsMillis(f, "grams_needed"));
             JsonObjectConst rk = f["rack"]["mapValue"]["fields"];
             if (!rk.isNull()) {
@@ -1356,15 +1370,16 @@ bool ttcloud::heartbeat(const Presence& p, bool full, String& err) {
     // Without this, a name somebody types in Studio lives until the next
     // heartbeat - thirty seconds - and then the device puts its own back.
     String name = defaultDisplayName();
-    // The slicer's load requests ride on the same session: read with the full
-    // beat, and on every second beat after it - a minute while awake. Asleep,
-    // nobody is at the box to load a spool.
-    const bool readLoad = full || (!p.screenOff && (g_lwBeat % 2) == 0);
-    g_lwBeat++;
+    // The slicer's load requests ride on the same session, and only while a
+    // printer's slots are on screen (Presence::wantLoad) - the one place they
+    // are shown. Elsewhere they cost nothing.
+    const bool readLoad = p.wantLoad && !p.screenOff;
     if (full || readLoad) {
         String resp;
-        String url = base + "/" + path + "?mask.fieldPaths=load_requests";
-        if (full) url += "&mask.fieldPaths=display_name&mask.fieldPaths=slots";
+        String url = base + "/" + path + "?mask.fieldPaths=";
+        if (full)     url += "display_name&mask.fieldPaths=slots";
+        if (full && readLoad) url += "&mask.fieldPaths=";
+        if (readLoad) url += "load_requests";
         const int hc = httpsGET(url, resp, g_idToken.c_str());
         if (hc != 200 && hc != 404)
             Serial.printf("[presence] read http %d: %.160s\n", hc, resp.c_str());
@@ -1385,13 +1400,12 @@ bool ttcloud::heartbeat(const Presence& p, bool full, String& err) {
                     // rather than wiping it with an empty book.
                     if (!g_restoredReady) { readSlots(r["fields"]); g_restoredReady = true; }
                 }
-                readLoadRequests(r["fields"]);
-                g_lwReady = true;
+                if (readLoad) { readLoadRequests(r["fields"]); g_lwReady = true; }
             }
         } else if (hc == 404) {
             // 404 is the ordinary first beat: the document does not exist yet.
             if (full && !g_restoredReady) { g_restoredN = 0; g_restoredReady = true; }
-            g_lwN = 0; g_lwReady = true;
+            if (readLoad) { g_lwN = 0; g_lwReady = true; }
         }
     }
 

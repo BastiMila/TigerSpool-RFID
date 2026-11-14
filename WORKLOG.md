@@ -20,6 +20,9 @@ message, and reset it to this header.
 
 ### Fixed
 
+- The note under "Send weights" stays three seconds instead of a minute: it
+  said what the last push did long after it had stopped being news.
+
 - The slot book was never carried on after a reboot: the presence document is
   read back with ArduinoJson, whose default nesting limit of ten is less than
   Firestore's `mapValue`/`fields` wrapping of `slots` needs, so the read failed
@@ -40,15 +43,17 @@ message, and reset it to this header.
 
 - Load requests from a slicer: a plugin writes `load_requests` into this box's
   presence document (per printer: per slot the spool's uids, material and rack
-  place), and the box shows them - the wanted slots outlined in the grid with
-  a count under it, the material and the place ("Karton Sunlu 250G, B5", the
-  rack name left out when the font cannot draw it) on the scan screen, and
+  place), and the box shows them - the wanted slots outlined in the grid, their
+  number on orange, with a count under it; a swatch of the colour, the maker,
+  the material and the place ("Karton Sunlu 250G, B5", the rack name left out
+  when the font cannot draw it) in orange on the scan screen, and "No TigerTag
+  set yet" for a spool that has no chip; and
   "Not the spool the slicer asked for" on the result when another spool was
-  sent to a wanted slot. Read with the beat, every second beat while the screen
-  is on; a request is done when `slots` holds one of its spools, and ignored
+  sent to a wanted slot. Read with the beat, and only while a printer's slots are
+  on screen; a request is done when `slots` holds one of its spools, and ignored
   after 24 h. In the presence document rather than a collection of its own,
   because that path is already allowed by the account's rules. The device
-  never writes it. Preview: `?preview=scanwant`.
+  never writes it. Previews: `?preview=scanwant`, `?preview=scanwant-notag`.
 
 - `bookOnSent` logs why a send left nothing in the slot book (no account id
   for the printer yet, no slot key, no uid) - before, `slots` just stayed

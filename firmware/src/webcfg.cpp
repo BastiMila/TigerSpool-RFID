@@ -650,8 +650,14 @@ namespace {
         else if (preview == "scanretry")  screen_scan::showScan("2", i18n::T(S_WEIGHT_RETRY));
         else if (preview == "scanwant") {
             // A slicer's load request, with a rack name the font can draw.
-            static const screen_scan::Want w = { "PLA Silk", "Karton Sunlu 250G", 1, 4 };
+            static const screen_scan::Want w = { "PLA Silk", "Sunlu", 0x5A6D30, false,
+                                                 "Karton Sunlu 250G", 1, 4 };
             screen_scan::showScan("2", nullptr, &w);
+        }
+        else if (preview == "scanwant-notag") {
+            static const screen_scan::Want w = { "PETG", "Generic", 0xE0483C, true,
+                                                 "Regal", 0, 2 };
+            screen_scan::showScan("3", nullptr, &w);
         }
         else if (preview == "result")    screen_scan::showResult("B2", true, "", previewTag(), 3200);
         else if (preview == "resultgrams") screen_scan::showResult("2", true, "", previewTag(), 3200,

@@ -62,7 +62,12 @@ void showScan(const char* slotLabel, const char* note, const Want* want) {
     // from 1 - "B5" is level 1, position 4.
     char what[96] = "", place[80] = "";
     if (want) {
-        snprintf(what, sizeof(what), i18n::T(S_LOAD_WANT), want->material ? want->material : "");
+        // Maker and material, as on the spool's own label; the colour is the
+        // swatch beside them. A maker the font cannot draw is left out.
+        const char* br  = want->brand && want->brand[0] && drawable(want->brand, &font_ui_14)
+                        ? want->brand : "";
+        const char* mat = want->material ? want->material : "";
+        snprintf(what, sizeof(what), "%s%s%s", br, br[0] && mat[0] ? " " : "", mat);
         if (want->level >= 0 && want->level < 26 && want->position >= 0) {
             const bool named = want->rackName && want->rackName[0]
                             && drawable(want->rackName, &font_ui_14);
@@ -72,7 +77,8 @@ void showScan(const char* slotLabel, const char* note, const Want* want) {
         }
     }
     uint32_t sig = hashStr(slotLabel) ^ (note ? hashStr(note) * 31u : 0u)
-                 ^ (want ? hashStr(what) * 7u ^ hashStr(place) * 13u : 0u);
+                 ^ (want ? hashStr(what) * 7u ^ hashStr(place) * 13u
+                           ^ (uint32_t)want->rgb * 17u ^ (want->noChip ? 0x4E4Fu : 0u) : 0u);
     if (s_which == SCAN && sig == s_sig) return;
     s_which = SCAN; s_sig = sig;
 
@@ -94,8 +100,37 @@ void showScan(const char* slotLabel, const char* note, const Want* want) {
         frame::caption(i18n::T(S_TO_READER), theme::TEXT, &font_ui_14);
     }
     if (want) {
-        frame::caption(what, theme::WARN, &font_ui_14);
+        // What the slicer job wants here, all in the job's orange: a swatch of
+        // the colour, maker and material beside it, the place underneath.
+        lv_obj_t* row = lv_obj_create(body);
+        lv_obj_remove_style_all(row);
+        lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_column(row, 6, 0);
+        lv_obj_clear_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+        if (want->rgb >= 0) {
+            lv_obj_t* sw = lv_obj_create(row);
+            lv_obj_remove_style_all(sw);
+            lv_obj_set_size(sw, 14, 14);
+            lv_obj_set_style_radius(sw, 3, 0);
+            lv_obj_set_style_bg_opa(sw, LV_OPA_COVER, 0);
+            lv_obj_set_style_bg_color(sw, lv_color_hex((uint32_t)want->rgb), 0);
+            lv_obj_set_style_border_width(sw, 1, 0);
+            lv_obj_set_style_border_color(sw, lv_color_hex(theme::WARN), 0);
+            lv_obj_clear_flag(sw, LV_OBJ_FLAG_CLICKABLE);
+        }
+        if (what[0]) {
+            lv_obj_t* l = lv_label_create(row);
+            lv_label_set_text(l, what);
+            lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+            lv_obj_set_style_max_width(l, theme::SCREEN_W - 2 * theme::PAD - 30, 0);
+            lv_obj_set_style_text_color(l, lv_color_hex(theme::WARN), 0);
+            lv_obj_set_style_text_font(l, &font_ui_14, 0);
+        }
         if (place[0]) frame::caption(place, theme::WARN, &font_ui_14);
+        if (want->noChip) frame::caption(i18n::T(S_LOAD_NOTAG), theme::WARN, &font_ui_14);
     }
 
     // Tone 0, not the destructive red. Cancelling a scan throws nothing away -

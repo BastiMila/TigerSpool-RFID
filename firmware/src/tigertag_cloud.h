@@ -142,6 +142,8 @@ namespace ttcloud {
         // vouch for - no RTC, no NTP - so a time it wrote itself would be a
         // guess presented as a fact.
         bool          usedNow        = false;
+        // A printer's slots are on screen: read `load_requests` with this beat.
+        bool          wantLoad       = false;
 
         // Which spool is in which printer slot, as far as this device knows:
         // published as `slots` (docs/PRESENCE.md). Not written at all until
@@ -183,6 +185,9 @@ namespace ttcloud {
         String  key;             // PrinterBackend::slotKey
         String  uids[2];         // inventory id, and its twin's when it has one
         String  material;
+        String  brand;           // empty when not said
+        int32_t rgb = -1;        // 0xRRGGBB, -1 when not said
+        bool    noChip = false;  // the spool has no TigerTag: its id is not a chip uid
         String  rackName;        // empty when the spool has no place
         int     level = -1;      // from 0, drawn as a letter
         int     position = -1;   // from 0, drawn from 1

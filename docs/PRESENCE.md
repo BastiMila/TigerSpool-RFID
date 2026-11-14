@@ -157,7 +157,7 @@ load_requests: {                           // key: a printer id from printer_ids
     "job": "Plate 1",
     "slots": {
       "2": {"uids": ["5301E4BA640001", "<twin>"], "uid": "5301E4BA640001",
-            "material": "PLA", "color": "#5A6D30", "grams_needed": 34.5,
+            "brand": "Sunlu", "material": "PLA", "color": "#5A6D30", "grams_needed": 34.5,
             "rack": {"id": "...", "name": "Karton Sunlu 250G", "level": 1, "position": 4}},
       "3": null                            // nothing asked for this slot
     }
@@ -176,17 +176,24 @@ load_requests: {                           // key: a printer id from printer_ids
   from 1 - level 1, position 4 is "B5". A name the panel's font cannot draw is
   left out and the place is shown as "B5" alone, which is why the name comes
   apart from the numbers rather than as finished text.
-- **Read with the beat**: on the full beat and then every second beat while
-  the screen is on - a minute - as one GET with `mask.fieldPaths=load_requests`
-  on the session the beat already holds. Not read while the screen is off.
+- **Read with the beat, and only while a printer's slots are on screen** (the
+  slot grid, the scan, the send and its result - the only places a request is
+  shown): one GET with `mask.fieldPaths=load_requests` on the session the beat
+  already holds, every 30 s there. Elsewhere it is not read at all, because on
+  a weak network every round trip is seconds. A new request therefore shows
+  up within 30 s of opening the printer.
 - **A slot's request is done** when the slot book holds, confirmed by the
   printer, one of the spools it names. Done, or `requested_at` older than 24 h,
   it is no longer shown. Nothing is written back: the slicer compares its
   request with `slots`.
-- On the device: the slot grid outlines the wanted slots and says how many; the
-  scan screen for a wanted slot names the material and the place; a send of
-  another spool to that slot goes through, and the result screen says it was
-  not the spool the slicer asked for.
+- **A spool with no chip yet** - an inventory id that is not hex, such as
+  `TIGERDATA_...` - can never be matched by a scan. Its slot is shown with "No
+  TigerTag set yet", and no spool sent there is called the wrong one.
+- On the device: the slot grid outlines the wanted slots, puts their number on
+  orange and says how many; the scan screen for a wanted slot shows, in orange,
+  a swatch of `color`, `brand` and `material`, and the place; a send of another
+  spool to that slot goes through, and the result screen says it was not the
+  spool the slicer asked for. `job`, `grams_needed` and `place` are not read.
 - At most 32 requested slots across all printers, in RAM.
 
 `printer_ids` is what lets Studio put the right TigerSpool next to the right

@@ -22,6 +22,9 @@ namespace screen_scan {
 // What a slicer job wants in this slot, drawn under the instruction.
 struct Want {
     const char* material;     // may be empty
+    const char* brand;        // may be empty
+    int32_t     rgb;          // 0xRRGGBB, -1 for no swatch
+    bool        noChip;       // the spool has no TigerTag yet
     const char* rackName;     // may be empty; left out when the font cannot draw it
     int         level;        // from 0, -1 when the spool has no place
     int         position;     // from 0

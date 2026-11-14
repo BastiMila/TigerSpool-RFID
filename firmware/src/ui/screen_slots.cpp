@@ -426,6 +426,15 @@ void show(const char* printerName, PrinterBackend* backend,
         // only bold face compiled in is 16 px.
         lv_obj_set_style_text_font(label, &font_ui_bold_16, 0);
         lv_obj_set_style_text_color(label, lv_color_hex(theme::TEXT), 0);
+        if (i < 32 && (wantMask >> i) & 1u) {
+            // The slot a slicer job wants loaded, named in the colour of the
+            // job: the number itself on orange, read before the outline is.
+            lv_obj_set_style_bg_color(label, lv_color_hex(theme::WARN), 0);
+            lv_obj_set_style_bg_opa(label, LV_OPA_COVER, 0);
+            lv_obj_set_style_text_color(label, lv_color_hex(0x101010), 0);
+            lv_obj_set_style_radius(label, 3, 0);
+            lv_obj_set_style_pad_hor(label, 5, 0);
+        }
 
         lv_obj_t* block = lv_obj_create(cell);
         lv_obj_remove_style_all(block);
